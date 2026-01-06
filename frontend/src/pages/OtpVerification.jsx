@@ -49,8 +49,9 @@ const OtpVerification = ({ email, purpose = 'signup', onVerifySuccess, onResendO
     setError('');
 
     try {
+      const apiBaseURL = import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/v1';
       const endpoint = purpose === 'signup' ? '/auth/signup-verify-otp' : '/auth/forgot-password-verify-otp';
-      const response = await fetch(`http://localhost:4000/api/v1${endpoint}`, {
+      const response = await fetch(`${apiBaseURL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

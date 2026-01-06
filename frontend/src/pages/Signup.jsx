@@ -31,9 +31,11 @@ export default function Signup() {
     }
 
     try {
-      const response = await fetch('http://localhost:4000/api/v1/auth/signup-request-otp', {
+      const apiBaseURL = import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/v1';
+      const response = await fetch(`${apiBaseURL}/auth/signup-request-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email })
       });
 
@@ -67,9 +69,11 @@ export default function Signup() {
   const handleResendOTP = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:4000/api/v1/auth/signup-request-otp', {
+      const apiBaseURL = import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/v1';
+      const response = await fetch(`${apiBaseURL}/auth/signup-request-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email })
       });
 

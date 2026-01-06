@@ -25,9 +25,11 @@ const ForgetPassword = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:4000/api/v1/auth/forgot-password-request-otp', {
+      const apiBaseURL = import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/v1';
+      const response = await fetch(`${apiBaseURL}/auth/forgot-password-request-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email })
       });
 
@@ -72,9 +74,11 @@ const ForgetPassword = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:4000/api/v1/auth/reset-password', {
+      const apiBaseURL = import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/v1';
+      const response = await fetch(`${apiBaseURL}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           email,
           resetToken,
