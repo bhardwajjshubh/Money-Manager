@@ -25,11 +25,13 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .map(o => o.trim())
   .filter(Boolean);
 
+const vercelPreviewPattern = /\.vercel\.app$/; // allow Vercel preview deployments
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+    if (!origin) return callback(null, true); // mobile apps, curl, etc.
+    const isWhitelisted = allowedOrigins.includes(origin) || vercelPreviewPattern.test(origin);
+    if (isWhitelisted) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true
