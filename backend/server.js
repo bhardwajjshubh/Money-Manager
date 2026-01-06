@@ -1,0 +1,44 @@
+require('dotenv').config();
+const express = require('express');
+const cookieParser = require('cookie-parser');
+const cors = require('cors');
+const connectDB = require('./config/db');
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const categoryRoutes = require('./routes/categories');
+const incomeRoutes = require('./routes/incomes');
+const expenseRoutes = require('./routes/expenses');
+const budgetRoutes = require('./routes/budgets');
+const savingsRoutes = require('./routes/savings');
+const loanRoutes = require('./routes/loans');
+const dashboardRoutes = require('./routes/dashboard');
+
+const app = express();
+
+app.use(express.json());
+app.use(cookieParser());
+
+app.use(cors({
+  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  credentials: true
+}));
+
+connectDB();
+
+// Register routes
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/categories', categoryRoutes);
+app.use('/api/v1/incomes', incomeRoutes);
+app.use('/api/v1/expenses', expenseRoutes);
+app.use('/api/v1/budgets', budgetRoutes);
+app.use('/api/v1/savings', savingsRoutes);
+app.use('/api/v1/loans', loanRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
+
+app.get('/', (req, res) => res.json({ success: true, message: 'Money Manager API' }));
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
