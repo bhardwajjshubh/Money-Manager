@@ -11,8 +11,8 @@ const router = express.Router();
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
+  secure: true, // required for SameSite=None
+  sameSite: 'none', // allow cross-site (frontend on Vercel, API on Render)
 };
 
 // Signup Step 1: Request OTP
