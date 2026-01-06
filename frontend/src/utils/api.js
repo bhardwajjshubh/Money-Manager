@@ -27,7 +27,9 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Avoid refresh loop: if refresh call itself failed, or no response, just reject
+    const isRefreshCall = originalRequest?.url?.includes('/auth/refresh');
+    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshCall) {
       originalRequest._retry = true;
       
       try {
