@@ -1,14 +1,9 @@
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-// Configure email transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASSWORD || 'your-app-password'
-  }
-});
+// Configure SendGrid
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@moneymanager.com';
 
 // Generate random OTP (6 digits)
 const generateOTP = () => {
@@ -22,12 +17,7 @@ const getOTPExpiry = () => {
 
 // Send OTP via email
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
-  // Log email config (without password) for debugging
-  console.log('Email config:', {
-    user: process.env.EMAIL_USER,
-    hasPassword: !!process.env.EMAIL_PASSWORD,
-    passwordLength: process.env.EMAIL_PASSWORD?.length
-  });
+  console.log('Sending OTP email to:', email);
 
   const subject = purpose === 'signup' 
     ? 'Verify Your Email - Money Manager'
@@ -75,20 +65,18 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   `;
 
   try {
-    const info = await transporter.sendMail({
-      from: `"Money Manager" <${process.env.EMAIL_USER}>`,
+    await sgMail.send({
       to: email,
+      from: FROM_EMAIL,
       subject: subject,
       html: htmlContent
     });
-    console.log('Email sent successfully:', info.messageId);
+    console.log('✅ Email sent successfully to:', email);
     return true;
   } catch (error) {
     console.error('❌ Email sending failed:', {
       error: error.message,
-      code: error.code,
-      command: error.command,
-      response: error.response
+      code: error.code
     });
     return false;
   }
