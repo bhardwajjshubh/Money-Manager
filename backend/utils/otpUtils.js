@@ -22,6 +22,13 @@ const getOTPExpiry = () => {
 
 // Send OTP via email
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
+  // Log email config (without password) for debugging
+  console.log('Email config:', {
+    user: process.env.EMAIL_USER,
+    hasPassword: !!process.env.EMAIL_PASSWORD,
+    passwordLength: process.env.EMAIL_PASSWORD?.length
+  });
+
   const subject = purpose === 'signup' 
     ? 'Verify Your Email - Money Manager'
     : 'Password Reset OTP - Money Manager';
@@ -68,15 +75,21 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   `;
 
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'noreply@moneymanager.com',
+    const info = await transporter.sendMail({
+      from: `"Money Manager" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: subject,
       html: htmlContent
     });
+    console.log('Email sent successfully:', info.messageId);
     return true;
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error('❌ Email sending failed:', {
+      error: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response
+    });
     return false;
   }
 };
