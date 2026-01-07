@@ -1,25 +1,6 @@
-const nodemailer = require('nodemailer');
-
-// Simple SMTP setup (works with Brevo or any SMTP that only needs sender verification)
+// Brevo API setup (uses HTTPS, no SMTP ports blocked by hosting providers)
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const FROM_EMAIL = process.env.FROM_EMAIL;
-const smtpHost = process.env.SMTP_HOST;
-const smtpPort = Number(process.env.SMTP_PORT) || 587;
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
-
-// Create transporter lazily to avoid crashes on boot if envs are missing
-const getTransporter = () => {
-  if (!smtpHost || !smtpUser || !smtpPass || !FROM_EMAIL) {
-    console.error('❌ SMTP not configured: missing one of SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/FROM_EMAIL');
-    return null;
-  }
-  return nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465, // true for TLS/SSL port
-    auth: { user: smtpUser, pass: smtpPass }
-  });
-};
 
 // Generate random OTP (6 digits)
 const generateOTP = () => {
@@ -31,12 +12,14 @@ const getOTPExpiry = () => {
   return new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 };
 
-// Send OTP via email
+// Send OTP via email using Brevo API
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   console.log('Sending OTP email to:', email);
 
-  const transporter = getTransporter();
-  if (!transporter) return false;
+  if (!BREVO_API_KEY || !FROM_EMAIL) {
+    console.error('❌ Brevo not configured: missing BREVO_API_KEY or FROM_EMAIL');
+    return false;
+  }
 
   const subject = purpose === 'signup' 
     ? 'Verify Your Email - Money Manager'
@@ -84,13 +67,29 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   `;
 
   try {
-    const info = await transporter.sendMail({
-      from: FROM_EMAIL,
-      to: email,
-      subject,
-      html: htmlContent
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': BREVO_API_KEY,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { email: FROM_EMAIL },
+        to: [{ email }],
+        subject,
+        htmlContent
+      })
     });
-    console.log('✅ Email sent successfully:', info?.messageId || info);
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('❌ Brevo API error:', error);
+      return false;
+    }
+
+    const data = await response.json();
+    console.log('✅ Email sent successfully:', data?.messageId || data);
     return true;
   } catch (error) {
     console.error('❌ Email sending failed:', error?.message || error);
