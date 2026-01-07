@@ -1,9 +1,7 @@
 const crypto = require('crypto');
-const sgMail = require('@sendgrid/mail');
-
-// Configure SendGrid
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@moneymanager.com';
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
 // Generate random OTP (6 digits)
 const generateOTP = () => {
@@ -65,19 +63,20 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   `;
 
   try {
-    await sgMail.send({
+    const { data, error } = await resend.emails.send({
       to: email,
       from: FROM_EMAIL,
-      subject: subject,
+      subject,
       html: htmlContent
     });
-    console.log('✅ Email sent successfully to:', email);
+    if (error) {
+      console.error('❌ Email sending failed:', error);
+      return false;
+    }
+    console.log('✅ Email sent successfully:', data?.id);
     return true;
   } catch (error) {
-    console.error('❌ Email sending failed:', {
-      error: error.message,
-      code: error.code
-    });
+    console.error('❌ Email sending failed:', error?.message || error);
     return false;
   }
 };
