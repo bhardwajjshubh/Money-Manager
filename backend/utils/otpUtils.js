@@ -1,7 +1,25 @@
-const crypto = require('crypto');
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+const nodemailer = require('nodemailer');
+
+// Simple SMTP setup (works with Brevo or any SMTP that only needs sender verification)
+const FROM_EMAIL = process.env.FROM_EMAIL;
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = Number(process.env.SMTP_PORT) || 587;
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+
+// Create transporter lazily to avoid crashes on boot if envs are missing
+const getTransporter = () => {
+  if (!smtpHost || !smtpUser || !smtpPass || !FROM_EMAIL) {
+    console.error('❌ SMTP not configured: missing one of SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/FROM_EMAIL');
+    return null;
+  }
+  return nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465, // true for TLS/SSL port
+    auth: { user: smtpUser, pass: smtpPass }
+  });
+};
 
 // Generate random OTP (6 digits)
 const generateOTP = () => {
@@ -16,6 +34,9 @@ const getOTPExpiry = () => {
 // Send OTP via email
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   console.log('Sending OTP email to:', email);
+
+  const transporter = getTransporter();
+  if (!transporter) return false;
 
   const subject = purpose === 'signup' 
     ? 'Verify Your Email - Money Manager'
@@ -63,17 +84,13 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   `;
 
   try {
-    const { data, error } = await resend.emails.send({
-      to: email,
+    const info = await transporter.sendMail({
       from: FROM_EMAIL,
+      to: email,
       subject,
       html: htmlContent
     });
-    if (error) {
-      console.error('❌ Email sending failed:', error);
-      return false;
-    }
-    console.log('✅ Email sent successfully:', data?.id);
+    console.log('✅ Email sent successfully:', info?.messageId || info);
     return true;
   } catch (error) {
     console.error('❌ Email sending failed:', error?.message || error);
