@@ -1,5 +1,5 @@
-// Brevo API setup (uses HTTPS, no SMTP ports blocked by hosting providers)
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
+// Elastic Email API setup (instant activation, no waiting, 100 emails/day free)
+const ELASTIC_EMAIL_API_KEY = process.env.ELASTIC_EMAIL_API_KEY;
 const FROM_EMAIL = process.env.FROM_EMAIL;
 
 // Generate random OTP (6 digits)
@@ -12,12 +12,12 @@ const getOTPExpiry = () => {
   return new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 };
 
-// Send OTP via email using Brevo API
+// Send OTP via email using Elastic Email API
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   console.log('Sending OTP email to:', email);
 
-  if (!BREVO_API_KEY || !FROM_EMAIL) {
-    console.error('❌ Brevo not configured: missing BREVO_API_KEY or FROM_EMAIL');
+  if (!ELASTIC_EMAIL_API_KEY || !FROM_EMAIL) {
+    console.error('❌ Elastic Email not configured: missing ELASTIC_EMAIL_API_KEY or FROM_EMAIL');
     return false;
   }
 
@@ -67,29 +67,29 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   `;
 
   try {
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    const response = await fetch('https://api.elasticemail.com/v2/email/send', {
       method: 'POST',
       headers: {
-        'accept': 'application/json',
-        'api-key': BREVO_API_KEY,
-        'content-type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: JSON.stringify({
-        sender: { email: FROM_EMAIL },
-        to: [{ email }],
+      body: new URLSearchParams({
+        apikey: ELASTIC_EMAIL_API_KEY,
+        from: FROM_EMAIL,
+        to: email,
         subject,
-        htmlContent
+        bodyHtml: htmlContent,
+        isTransactional: 'true'
       })
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('❌ Brevo API error:', error);
+    const data = await response.json();
+    
+    if (!response.ok || !data.success) {
+      console.error('❌ Elastic Email API error:', data);
       return false;
     }
 
-    const data = await response.json();
-    console.log('✅ Email sent successfully:', data?.messageId || data);
+    console.log('✅ Email sent successfully:', data.data?.messageid || data);
     return true;
   } catch (error) {
     console.error('❌ Email sending failed:', error?.message || error);
