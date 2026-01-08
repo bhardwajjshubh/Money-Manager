@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import OtpVerification from './OtpVerification';
 
 export default function Signup() {
-  const [step, setStep] = useState(1); // 1: signup form, 2: OTP verification
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,7 +11,7 @@ export default function Signup() {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const navigate = useNavigate();
 
-  const handleRequestOTP = async (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -32,21 +30,22 @@ export default function Signup() {
 
     try {
       const apiBaseURL = import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/v1';
-      const response = await fetch(`${apiBaseURL}/auth/signup-request-otp`, {
+      const response = await fetch(`${apiBaseURL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ name, email, password })
       });
 
       const data = await response.json();
 
       if (data.success) {
-        // Store signup data temporarily
-        window.userData = { name, email, password };
-        setStep(2);
+        setShowSuccessPopup(true);
+        setTimeout(() => {
+          navigate('/login', { state: { accountCreated: true } });
+        }, 2000);
       } else {
-        setError(data.message || 'Failed to send OTP');
+        setError(data.message || 'Signup failed');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -55,42 +54,8 @@ export default function Signup() {
     }
   };
 
-  const handleOTPVerifySuccess = (data) => {
-    // Clean up stored data
-    delete window.userData;
-    // Show success popup
-    setShowSuccessPopup(true);
-    // Navigate to login after 2 seconds with success state
-    setTimeout(() => {
-      navigate('/login', { state: { accountCreated: true } });
-    }, 2000);
-  };
-
-  const handleResendOTP = async () => {
-    setLoading(true);
-    try {
-      const apiBaseURL = import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/v1';
-      const response = await fetch(`${apiBaseURL}/auth/signup-request-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email })
-      });
-
-      const data = await response.json();
-      if (!data.success) {
-        setError(data.message || 'Failed to resend OTP');
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 1: Signup Form
-  if (step === 1) {
-    return (
+  // Signup Form
+  return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4 relative overflow-hidden">
         {/* Floating blobs */}
         <div className="blob blob-1"></div>
@@ -102,7 +67,7 @@ export default function Signup() {
             <h2 className="text-3xl font-bold text-white text-center mb-2">Create Account</h2>
             <p className="text-blue-100 text-center mb-8">Join Money Manager and start tracking your finances</p>
 
-            <form onSubmit={handleRequestOTP}>
+            <form onSubmit={handleSignup}>
               {/* Name Input */}
               <div className="mb-6">
                 <label className="block text-blue-200 text-sm font-semibold mb-2">Full Name</label>
@@ -174,6 +139,16 @@ export default function Signup() {
                 </div>
               )}
 
+              {showSuccessPopup && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                  <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                    <div className="text-5xl mb-4">✅</div>
+                    <h3 className="text-2xl font-bold text-green-600 mb-2">Account Created!</h3>
+                    <p className="text-gray-600">Redirecting to login...</p>
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
@@ -186,7 +161,7 @@ export default function Signup() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Sending OTP...
+                    Creating Account...
                   </>
                 ) : (
                   'Create Account'
@@ -213,16 +188,4 @@ export default function Signup() {
         </div>
       </div>
     );
-  }
-
-  // Step 2: OTP Verification
-  return (
-    <OtpVerification
-      email={email}
-      purpose="signup"
-      onVerifySuccess={handleOTPVerifySuccess}
-      onResendOTP={handleResendOTP}
-      onBack={() => setStep(1)}
-    />
-  );
 }

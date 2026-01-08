@@ -16,15 +16,7 @@ const userSchema = new mongoose.Schema({
   refreshTokens: [refreshTokenSchema],
   resetPasswordHash: String,
   resetPasswordExpiry: Date,
-  // OTP fields
-  otp: String,
-  otpExpiry: Date,
-  isEmailVerified: { type: Boolean, default: false },
-  tempSignupData: {
-    name: String,
-    email: String,
-    passwordHash: String
-  }
+  isEmailVerified: { type: Boolean, default: true }
 });
 
 module.exports = mongoose.model('User', userSchema);
