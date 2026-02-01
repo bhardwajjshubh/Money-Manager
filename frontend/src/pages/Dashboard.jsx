@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import LoadingState from '../components/LoadingState';
 import { useDataRefresh } from '../context/DataContext';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -28,7 +29,7 @@ export default function Dashboard() {
   };
 
   if (loading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <LoadingState label="Loading dashboard" />;
   }
 
   const formatCurrency = (amount) => {

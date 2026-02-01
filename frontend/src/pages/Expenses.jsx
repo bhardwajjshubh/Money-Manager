@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import LoadingState from '../components/LoadingState';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useDataRefresh } from '../context/DataContext';
@@ -140,7 +141,7 @@ export default function Expenses() {
 
   const filteredExpenses = getFilteredExpenses();
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <LoadingState label="Loading expenses" />;
 
   return (
     <div>
