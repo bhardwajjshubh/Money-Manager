@@ -1,25 +1,37 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgetPassword from './pages/ForgetPassword';
-import Dashboard from './pages/Dashboard';
-import Income from './pages/Income';
-import Expenses from './pages/Expenses';
-import Categories from './pages/Categories';
-import Budgets from './pages/Budgets';
-import Savings from './pages/Savings';
-import Loans from './pages/Loans';
-import Profile from './pages/Profile';
-import FAQ from './pages/FAQ';
 import Layout from './components/Layout';
+
+// Lazy load page components for code splitting
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Income = lazy(() => import('./pages/Income'));
+const Expenses = lazy(() => import('./pages/Expenses'));
+const Categories = lazy(() => import('./pages/Categories'));
+const Budgets = lazy(() => import('./pages/Budgets'));
+const Savings = lazy(() => import('./pages/Savings'));
+const Loans = lazy(() => import('./pages/Loans'));
+const Profile = lazy(() => import('./pages/Profile'));
+const FAQ = lazy(() => import('./pages/FAQ'));
+
+// Loading component
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  );
+}
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return <LoadingSpinner />;
   }
   
   return user ? children : <Navigate to="/login" />;
@@ -36,15 +48,51 @@ function App() {
             <Route path="/forgot-password" element={<ForgetPassword />} />
             
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-              <Route index element={<Dashboard />} />
-              <Route path="income" element={<Income />} />
-              <Route path="expenses" element={<Expenses />} />
-              <Route path="categories" element={<Categories />} />
-              <Route path="budgets" element={<Budgets />} />
-              <Route path="savings" element={<Savings />} />
-              <Route path="loans" element={<Loans />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="faq" element={<FAQ />} />
+              <Route index element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Dashboard />
+                </Suspense>
+              } />
+              <Route path="income" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Income />
+                </Suspense>
+              } />
+              <Route path="expenses" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Expenses />
+                </Suspense>
+              } />
+              <Route path="categories" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Categories />
+                </Suspense>
+              } />
+              <Route path="budgets" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Budgets />
+                </Suspense>
+              } />
+              <Route path="savings" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Savings />
+                </Suspense>
+              } />
+              <Route path="loans" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Loans />
+                </Suspense>
+              } />
+              <Route path="profile" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Profile />
+                </Suspense>
+              } />
+              <Route path="faq" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <FAQ />
+                </Suspense>
+              } />
             </Route>
           </Routes>
         </Router>

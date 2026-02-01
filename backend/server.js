@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
+const compression = require('compression');
 const connectDB = require('./config/db');
 
 // Import routes
@@ -16,6 +17,9 @@ const loanRoutes = require('./routes/loans');
 const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
+
+// Enable compression for all responses
+app.use(compression());
 
 app.use(express.json());
 app.use(cookieParser());
@@ -36,6 +40,18 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// Cache middleware for GET requests
+app.use((req, res, next) => {
+  if (req.method === 'GET') {
+    // Cache GET requests for 5 minutes
+    res.set('Cache-Control', 'public, max-age=300');
+  } else {
+    // Don't cache POST, PUT, PATCH, DELETE
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+  next();
+});
 
 connectDB();
 
