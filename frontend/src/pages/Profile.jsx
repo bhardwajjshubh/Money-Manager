@@ -110,6 +110,7 @@ export default function Profile() {
       <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
       <div className="relative">
         <input
+          key={`input-${label}-${value}`}
           type={type}
           value={value}
           onChange={onChange}
@@ -176,12 +177,12 @@ export default function Profile() {
     <div className="max-w-5xl mx-auto py-8">
       {/* Profile Header Card */}
       <div className="mb-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-8 border border-blue-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           {/* Profile Info */}
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900 mb-1">{user?.name}</h1>
             <p className="text-gray-600 mb-4">{user?.email}</p>
-            <div className="flex gap-6">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
               <div>
                 <span className="text-sm text-gray-500">Currency</span>
                 <p className="text-lg font-semibold text-gray-900">{profileData.currency}</p>
@@ -194,7 +195,7 @@ export default function Profile() {
           </div>
 
           {/* Status Badge */}
-          <div className="bg-white rounded-lg p-4 border-2 border-green-300">
+          <div className="bg-white rounded-lg p-3 sm:p-4 border-2 border-green-300 w-full sm:w-auto">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
               <span className="text-sm font-semibold text-green-600">Active</span>
