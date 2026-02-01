@@ -2,6 +2,24 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
+const InputField = ({ label, icon, type = 'text', value, onChange, disabled = false, placeholder = '' }) => (
+  <div className="group">
+    <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+    <div className="relative">
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        placeholder={placeholder}
+        className={`w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg transition-all duration-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
+          disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white group-hover:border-gray-400'
+        }`}
+      />
+    </div>
+  </div>
+);
+
 export default function Profile() {
   const { user, setUser } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
@@ -104,25 +122,6 @@ export default function Profile() {
       setLoading(false);
     }
   };
-
-  const InputField = ({ label, icon, type = 'text', value, onChange, disabled = false, placeholder = '' }) => (
-    <div className="group">
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      <div className="relative">
-        <input
-          key={`input-${label}-${value}`}
-          type={type}
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          placeholder={placeholder}
-          className={`w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg transition-all duration-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
-            disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white group-hover:border-gray-400'
-          }`}
-        />
-      </div>
-    </div>
-  );
 
   const PasswordField = ({ label, value, onChange, showPassword, onToggleShow, name = '' }) => (
     <div className="group">
