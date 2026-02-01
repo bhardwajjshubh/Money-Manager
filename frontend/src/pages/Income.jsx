@@ -11,6 +11,7 @@ export default function Income() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingIncomeId, setEditingIncomeId] = useState(null);
+  const [selectedDate, setSelectedDate] = useState('');
   const [formData, setFormData] = useState({ amount: '', source: '', date: '', notes: '', savingsGoalId: '' });
 
   useEffect(() => {
@@ -98,6 +99,16 @@ export default function Income() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: user?.currency || 'INR' }).format(amount);
   };
 
+  const getFilteredIncomes = () => {
+    if (!selectedDate) return incomes;
+    return incomes.filter(income => {
+      const incomeDate = new Date(income.date).toISOString().split('T')[0];
+      return incomeDate === selectedDate;
+    });
+  };
+
+  const filteredIncomes = getFilteredIncomes();
+
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -110,6 +121,34 @@ export default function Income() {
         >
           {showForm ? 'Cancel' : '+ Add Income'}
         </button>
+      </div>
+
+      {/* Date Filter Section */}
+      <div className="bg-white shadow rounded-lg p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Date</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
+            />
+          </div>
+          {selectedDate && (
+            <button
+              onClick={() => setSelectedDate('')}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+        {selectedDate && (
+          <p className="text-sm text-gray-600 mt-2">
+            Showing {filteredIncomes.length} record{filteredIncomes.length !== 1 ? 's' : ''} for {new Date(selectedDate).toLocaleDateString()}
+          </p>
+        )}
       </div>
 
       {showForm && (
@@ -211,7 +250,14 @@ export default function Income() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {incomes.map((income) => (
+              {filteredIncomes.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                    {selectedDate ? 'No records found for this date' : 'No incomes yet'}
+                  </td>
+                </tr>
+              ) : (
+              filteredIncomes.map((income) => (
                 <tr key={income._id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(income.date).toLocaleDateString()}
@@ -239,17 +285,18 @@ export default function Income() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-3 p-4">
-          {incomes.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">No incomes yet</p>
+          {filteredIncomes.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">{selectedDate ? 'No records found for this date' : 'No incomes yet'}</p>
           ) : (
-            incomes.map((income) => (
+            filteredIncomes.map((income) => (
               <div key={income._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <div className="flex justify-between items-start mb-3">
                   <div>

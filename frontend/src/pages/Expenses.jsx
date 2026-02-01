@@ -11,6 +11,7 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const [selectedDate, setSelectedDate] = useState('');
   const [customCategoryName, setCustomCategoryName] = useState('');
   const [formData, setFormData] = useState({
     amount: '',
@@ -124,6 +125,16 @@ export default function Expenses() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: user?.currency || 'INR' }).format(amount);
   };
 
+  const getFilteredExpenses = () => {
+    if (!selectedDate) return expenses;
+    return expenses.filter(expense => {
+      const expenseDate = new Date(expense.date).toISOString().split('T')[0];
+      return expenseDate === selectedDate;
+    });
+  };
+
+  const filteredExpenses = getFilteredExpenses();
+
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -136,6 +147,34 @@ export default function Expenses() {
         >
           {showForm ? 'Cancel' : '+ Add Expense'}
         </button>
+      </div>
+
+      {/* Date Filter Section */}
+      <div className="bg-white shadow rounded-lg p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Date</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
+            />
+          </div>
+          {selectedDate && (
+            <button
+              onClick={() => setSelectedDate('')}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+        {selectedDate && (
+          <p className="text-sm text-gray-600 mt-2">
+            Showing {filteredExpenses.length} record{filteredExpenses.length !== 1 ? 's' : ''} for {new Date(selectedDate).toLocaleDateString()}
+          </p>
+        )}
       </div>
 
       {showForm && (
@@ -244,7 +283,14 @@ export default function Expenses() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {expenses.map((expense) => (
+              {filteredExpenses.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                    {selectedDate ? 'No records found for this date' : 'No expenses yet'}
+                  </td>
+                </tr>
+              ) : (
+              filteredExpenses.map((expense) => (
                 <tr key={expense._id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(expense.date).toLocaleDateString()}
@@ -275,17 +321,18 @@ export default function Expenses() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-3 p-4">
-          {expenses.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">No expenses yet</p>
+          {filteredExpenses.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">{selectedDate ? 'No records found for this date' : 'No expenses yet'}</p>
           ) : (
-            expenses.map((expense) => (
+            filteredExpenses.map((expense) => (
               <div key={expense._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <div className="flex justify-between items-start mb-3">
                   <div>
