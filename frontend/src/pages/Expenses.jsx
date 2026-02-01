@@ -13,6 +13,7 @@ export default function Expenses() {
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [customCategoryName, setCustomCategoryName] = useState('');
+  const [selectedCategoryOption, setSelectedCategoryOption] = useState('');
   const [formData, setFormData] = useState({
     amount: '',
     categoryId: '',
@@ -21,6 +22,8 @@ export default function Expenses() {
     notes: '',
     merchant: ''
   });
+
+  const predefinedCategories = ['Grocery', 'Food', 'Cloth', 'Recharge', 'Transportation', 'Entertainment', 'Utilities', 'Health', 'Education', 'Shopping', 'Other'];
 
   useEffect(() => {
     fetchData();
@@ -99,6 +102,7 @@ export default function Expenses() {
       merchant: expense.merchant || ''
     });
     setCustomCategoryName(expense.category?.name || '');
+    setSelectedCategoryOption(expense.category?.name || '');
     setEditingExpenseId(expense._id);
     setShowForm(true);
   };
@@ -106,6 +110,7 @@ export default function Expenses() {
   const handleCancelForm = () => {
     setFormData({ amount: '', categoryId: '', date: '', paymentMethod: 'cash', notes: '', merchant: '' });
     setCustomCategoryName('');
+    setSelectedCategoryOption('');
     setEditingExpenseId(null);
     setShowForm(false);
   };
@@ -198,14 +203,46 @@ export default function Expenses() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Category</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Type category name (e.g., Food, Transport)"
-                  value={customCategoryName}
-                  onChange={(e) => setCustomCategoryName(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                />
+                <div className="space-y-3 mt-1">
+                  <select
+                    value={selectedCategoryOption}
+                    onChange={(e) => {
+                      const selectedValue = e.target.value;
+                      setSelectedCategoryOption(selectedValue);
+                      if (selectedValue && selectedValue !== 'custom') {
+                        setCustomCategoryName(selectedValue);
+                      } else {
+                        setCustomCategoryName('');
+                      }
+                    }}
+                    className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2"
+                  >
+                    <option value="">-- Select a category --</option>
+                    {predefinedCategories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="custom">-- Or add custom category --</option>
+                  </select>
+                  
+                  {selectedCategoryOption === 'custom' && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter custom category name"
+                      value={customCategoryName}
+                      onChange={(e) => setCustomCategoryName(e.target.value)}
+                      className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2"
+                    />
+                  )}
+
+                  {selectedCategoryOption && selectedCategoryOption !== 'custom' && (
+                    <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded">
+                      Selected: <span className="font-semibold">{selectedCategoryOption}</span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Date</label>
