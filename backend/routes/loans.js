@@ -33,11 +33,16 @@ router.get('/', authenticate, async (req, res) => {
 // Create loan
 router.post('/',
   authenticate,
+  (req, res, next) => {
+    if (req.body?.dueDate === '') delete req.body.dueDate;
+    if (req.body?.notes === '') delete req.body.notes;
+    next();
+  },
   body('personName').isLength({ min: 1 }).trim(),
   body('type').isIn(['lent', 'borrowed']),
   body('totalAmount').isFloat({ min: 0 }),
-  body('dueDate').optional().isISO8601(),
-  body('notes').optional().trim(),
+  body('dueDate').optional({ nullable: true, checkFalsy: true }).isISO8601(),
+  body('notes').optional({ nullable: true, checkFalsy: true }).trim(),
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
@@ -101,7 +106,14 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // Update loan
-router.patch('/:id', authenticate, async (req, res) => {
+router.patch('/:id',
+  authenticate,
+  (req, res, next) => {
+    if (req.body?.dueDate === '') delete req.body.dueDate;
+    if (req.body?.notes === '') delete req.body.notes;
+    next();
+  },
+  async (req, res) => {
   try {
     const { personName, totalAmount, dueDate, notes } = req.body;
     const loan = await Loan.findOneAndUpdate(

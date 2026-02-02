@@ -9,6 +9,7 @@ export default function Budgets() {
   const [categories, setCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingBudgetId, setEditingBudgetId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ categoryId: '', amount: '', month: new Date().getMonth() + 1, year: new Date().getFullYear() });
 
   useEffect(() => {
@@ -30,6 +31,7 @@ export default function Budgets() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const payload = { ...formData, amount: Number(formData.amount) };
 
@@ -46,6 +48,8 @@ export default function Budgets() {
     } catch (error) {
       console.error('Error saving budget:', error);
       alert(error.response?.data?.message || 'Error saving budget');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -138,8 +142,16 @@ export default function Budgets() {
               </div>
             </div>
             <div className="flex gap-3">
-              <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                {editingBudgetId ? 'Update Budget' : 'Add Budget'}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2"><span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving...</span>
+                ) : (
+                  editingBudgetId ? 'Update Budget' : 'Add Budget'
+                )}
               </button>
               <button type="button" onClick={handleCancelForm} className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 Cancel

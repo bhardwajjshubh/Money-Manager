@@ -8,6 +8,7 @@ export default function Loans() {
   const [showForm, setShowForm] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(null);
   const [editingLoanId, setEditingLoanId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ personName: '', type: 'lent', totalAmount: '', dueDate: '', notes: '' });
   const [paymentData, setPaymentData] = useState({ amount: '', note: '' });
 
@@ -26,14 +27,22 @@ export default function Loans() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const payload = {
         personName: formData.personName,
         type: formData.type,
-        totalAmount: Number(formData.totalAmount),
-        dueDate: formData.dueDate || null,
-        notes: formData.notes
+        totalAmount: Number(formData.totalAmount)
       };
+
+      if (formData.dueDate) {
+        payload.dueDate = formData.dueDate;
+      }
+
+      const trimmedNotes = formData.notes?.trim();
+      if (trimmedNotes) {
+        payload.notes = trimmedNotes;
+      }
 
       if (editingLoanId) {
         await api.patch(`/loans/${editingLoanId}`, payload);
@@ -47,6 +56,8 @@ export default function Loans() {
       fetchLoans();
     } catch (error) {
       console.error('Error saving loan:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -121,7 +132,7 @@ export default function Loans() {
             <h2 className="text-lg font-semibold text-gray-900">{editingLoanId ? 'Edit Loan Record' : 'Add Loan Record'}</h2>
             {editingLoanId && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Editing</span>}
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className={`space-y-4 ${isSubmitting ? 'opacity-80 pointer-events-none' : ''}`}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Person Name</label>
@@ -176,8 +187,16 @@ export default function Loans() {
               </div>
             </div>
             <div className="flex gap-3">
-              <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                {editingLoanId ? 'Update Record' : 'Add Record'}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2"><span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving...</span>
+                ) : (
+                  editingLoanId ? 'Update Record' : 'Add Record'
+                )}
               </button>
               <button type="button" onClick={handleCancelForm} className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 Cancel

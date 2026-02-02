@@ -5,6 +5,7 @@ export default function Categories() {
   const [categories, setCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ name: '', type: 'expense', color: '#3B82F6' });
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export default function Categories() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const payload = { ...formData };
       if (editingCategoryId) {
@@ -35,6 +37,8 @@ export default function Categories() {
       fetchCategories();
     } catch (error) {
       console.error('Error saving category:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -118,9 +122,14 @@ export default function Categories() {
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                disabled={isSubmitting}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {editingCategoryId ? 'Update Category' : 'Add Category'}
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2"><span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving...</span>
+                ) : (
+                  editingCategoryId ? 'Update Category' : 'Add Category'
+                )}
               </button>
               <button
                 type="button"
