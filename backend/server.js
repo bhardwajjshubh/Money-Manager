@@ -41,15 +41,9 @@ app.use(cors({
   credentials: true
 }));
 
-// Cache middleware for GET requests
+// Disable caching for API responses to avoid stale data after updates/deletes
 app.use((req, res, next) => {
-  if (req.method === 'GET') {
-    // Cache GET requests for 5 minutes
-    res.set('Cache-Control', 'public, max-age=300');
-  } else {
-    // Don't cache POST, PUT, PATCH, DELETE
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-  }
+  res.set('Cache-Control', 'no-store');
   next();
 });
 
