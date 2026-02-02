@@ -40,7 +40,8 @@ router.get('/', authenticate, async (req, res) => {
     ]);
     const moneyToPay = borrowedResult[0]?.total || 0;
     
-    const currentBalance = totalIncome - totalExpenses - moneyToReceive + moneyToPay;
+    // Current balance should reflect only actual income/expenses, not outstanding loans
+    const currentBalance = totalIncome - totalExpenses;
     const totalSavings = totalIncome - totalExpenses;
     
     // Category-wise expenses (top 5)
