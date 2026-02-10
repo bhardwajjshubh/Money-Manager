@@ -4,7 +4,8 @@ const apiBaseURL = import.meta.env?.VITE_API_URL || '/api/v1';
 
 const api = axios.create({
   baseURL: apiBaseURL,
-  withCredentials: true
+  withCredentials: true,
+  timeout: 8000
 });
 
 let accessToken = null;

@@ -11,21 +11,33 @@ export function AuthProvider({ children }) {
   const checkAuth = useCallback(async () => {
     // Prevent multiple simultaneous auth checks
     if (isCheckingAuth.current) return;
-    
+
+    const currentPath = window.location.pathname;
+    const publicPaths = ['/login', '/signup', '/forgot-password'];
+    const isPublicRoute = publicPaths.includes(currentPath);
+
+    if (isPublicRoute) {
+      setLoading(false);
+      return;
+    }
+
     isCheckingAuth.current = true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     try {
-      const { data } = await api.post('/auth/refresh');
+      const { data } = await api.post('/auth/refresh', {}, { signal: controller.signal });
       setAccessToken(data.data.accessToken);
-      const userRes = await api.get('/users/me');
+      const userRes = await api.get('/users/me', { signal: controller.signal });
       setUser(userRes.data.data.user);
     } catch (error) {
       // Don't log errors on auth pages to prevent console spam
-      const currentPath = window.location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/signup' && currentPath !== '/forgot-password') {
+      if (!isPublicRoute && error?.name !== 'CanceledError') {
         console.error('Auth check failed:', error.message);
       }
       setUser(null);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
       isCheckingAuth.current = false;
     }
