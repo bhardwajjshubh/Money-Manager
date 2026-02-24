@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
+import { formatDateDDMMYYYY } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
 
 export default function Loans() {
@@ -243,7 +244,7 @@ export default function Loans() {
             </div>
 
             {loan.dueDate && (
-              <p className="text-sm text-gray-500 mb-2">Due: {new Date(loan.dueDate).toLocaleDateString()}</p>
+              <p className="text-sm text-gray-500 mb-2">Due: {formatDateDDMMYYYY(loan.dueDate)}</p>
             )}
             {loan.notes && <p className="text-sm text-gray-600 mb-2">{loan.notes}</p>}
 
@@ -288,7 +289,7 @@ export default function Loans() {
                 <p className="text-sm font-medium text-gray-700 mb-2">Payment History</p>
                 {loan.payments.map((payment, idx) => (
                   <div key={idx} className="text-sm text-gray-600 flex justify-between">
-                    <span>{new Date(payment.date).toLocaleDateString()}</span>
+                    <span>{formatDateDDMMYYYY(payment.date)}</span>
                     <span>{formatCurrency(payment.amount)}</span>
                   </div>
                 ))}

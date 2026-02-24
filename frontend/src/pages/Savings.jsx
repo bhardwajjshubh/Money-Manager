@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
+import { formatDateDDMMYYYY } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
 
 export default function Savings() {
@@ -200,7 +201,7 @@ export default function Savings() {
                 <p className="text-center text-sm text-gray-600 mt-1">{Math.round(progress)}% Complete</p>
               </div>
               {goal.deadline && (
-                <p className="text-sm text-gray-500">Deadline: {new Date(goal.deadline).toLocaleDateString()}</p>
+                <p className="text-sm text-gray-500">Deadline: {formatDateDDMMYYYY(goal.deadline)}</p>
               )}
             </div>
           );

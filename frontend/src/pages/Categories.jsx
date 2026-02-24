@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../utils/api';
 
 export default function Categories() {
@@ -67,6 +67,16 @@ export default function Categories() {
       console.error('Error deleting category:', error);
     }
   };
+
+  const uniqueCategories = useMemo(() => {
+    const seen = new Set();
+    return categories.filter((category) => {
+      const key = `${category.type}:${(category.name || '').trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [categories]);
 
   return (
     <div>
@@ -144,7 +154,7 @@ export default function Categories() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {categories.map((category) => (
+        {uniqueCategories.map((category) => (
           <div key={category._id} className="bg-white shadow rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">

@@ -6,38 +6,81 @@ const Expense = require('../models/Expense');
 
 const router = express.Router();
 
+const buildExpenseFilter = (query, userId) => {
+  const { from, to, category, q, paymentMethod, month, year } = query;
+  const filter = { user: new mongoose.Types.ObjectId(userId) };
+
+  const monthNumber = month ? parseInt(month, 10) : null;
+  const yearNumber = year ? parseInt(year, 10) : null;
+
+  if (month && (Number.isNaN(monthNumber) || monthNumber < 1 || monthNumber > 12)) {
+    const error = new Error('Invalid month. Expected value 1-12.');
+    error.status = 400;
+    throw error;
+  }
+
+  if (year && (Number.isNaN(yearNumber) || yearNumber < 1900 || yearNumber > 9999)) {
+    const error = new Error('Invalid year. Expected value 1900-9999.');
+    error.status = 400;
+    throw error;
+  }
+
+  if (from || to) {
+    filter.date = {};
+    if (from) filter.date.$gte = new Date(from);
+    if (to) filter.date.$lte = new Date(to);
+  } else if (monthNumber && yearNumber) {
+    filter.date = {
+      $gte: new Date(Date.UTC(yearNumber, monthNumber - 1, 1, 0, 0, 0, 0)),
+      $lte: new Date(Date.UTC(yearNumber, monthNumber, 0, 23, 59, 59, 999))
+    };
+  } else if (yearNumber) {
+    filter.date = {
+      $gte: new Date(Date.UTC(yearNumber, 0, 1, 0, 0, 0, 0)),
+      $lte: new Date(Date.UTC(yearNumber, 11, 31, 23, 59, 59, 999))
+    };
+  } else if (monthNumber) {
+    filter.$expr = { $eq: [{ $month: '$date' }, monthNumber] };
+  }
+
+  if (category) {
+    if (!mongoose.Types.ObjectId.isValid(category)) {
+      const error = new Error('Invalid category id.');
+      error.status = 400;
+      throw error;
+    }
+    filter.category = new mongoose.Types.ObjectId(category);
+  }
+  if (paymentMethod) filter.paymentMethod = paymentMethod;
+  if (q) {
+    filter.$or = [{ notes: new RegExp(q, 'i') }];
+  }
+
+  return filter;
+};
+
 // Get all expenses
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { from, to, category, q, page = 1, limit = 20, paymentMethod } = req.query;
-    const filter = { user: new mongoose.Types.ObjectId(req.userId) };
-    
-    if (from || to) {
-      filter.date = {};
-      if (from) filter.date.$gte = new Date(from);
-      if (to) filter.date.$lte = new Date(to);
-    }
-    
-    if (category) filter.category = category;
-    if (paymentMethod) filter.paymentMethod = paymentMethod;
-    if (q) {
-      filter.$or = [
-        { notes: new RegExp(q, 'i') },
-        { merchant: new RegExp(q, 'i') }
-      ];
-    }
+    const { page = 1, limit = 20 } = req.query;
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const filter = buildExpenseFilter(req.query, req.userId);
     
     const expenses = await Expense.find(filter)
       .populate('category', 'name color type')
       .sort({ date: -1 })
-      .limit(parseInt(limit))
-      .skip((parseInt(page) - 1) * parseInt(limit));
+      .limit(limitNumber)
+      .skip((pageNumber - 1) * limitNumber);
     
     const total = await Expense.countDocuments(filter);
     
-    res.json({ success: true, data: { expenses, total, page: parseInt(page), pages: Math.ceil(total / limit) } });
+    res.json({ success: true, data: { expenses, total, page: pageNumber, pages: Math.ceil(total / limitNumber) } });
   } catch (err) {
     console.error(err);
+    if (err.status) {
+      return res.status(err.status).json({ success: false, message: err.message });
+    }
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -50,21 +93,19 @@ router.post('/',
   body('date').isISO8601(),
   body('paymentMethod').optional().trim(),
   body('notes').optional().trim(),
-  body('merchant').optional().trim(),
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
     
     try {
-      const { amount, categoryId, date, paymentMethod, notes, merchant } = req.body;
+      const { amount, categoryId, date, paymentMethod, notes } = req.body;
       const expense = await Expense.create({
         user: new mongoose.Types.ObjectId(req.userId),
         amount,
         category: categoryId,
         date,
         paymentMethod,
-        notes,
-        merchant
+        notes
       });
       await expense.populate('category', 'name color type');
       res.status(201).json({ success: true, data: { expense } });
@@ -78,14 +119,8 @@ router.post('/',
 // Get expense summary
 router.get('/summary', authenticate, async (req, res) => {
   try {
-    const { from, to, groupBy } = req.query;
-    const filter = { user: new mongoose.Types.ObjectId(req.userId) };
-    
-    if (from || to) {
-      filter.date = {};
-      if (from) filter.date.$gte = new Date(from);
-      if (to) filter.date.$lte = new Date(to);
-    }
+    const { groupBy } = req.query;
+    const filter = buildExpenseFilter(req.query, req.userId);
     
     let groupField = null;
     if (groupBy === 'category') groupField = '$category';
@@ -114,6 +149,9 @@ router.get('/summary', authenticate, async (req, res) => {
     res.json({ success: true, data: { summary: result } });
   } catch (err) {
     console.error(err);
+    if (err.status) {
+      return res.status(err.status).json({ success: false, message: err.message });
+    }
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -133,10 +171,10 @@ router.get('/:id', authenticate, async (req, res) => {
 // Update expense
 router.patch('/:id', authenticate, async (req, res) => {
   try {
-    const { amount, categoryId, date, paymentMethod, notes, merchant } = req.body;
+    const { amount, categoryId, date, paymentMethod, notes } = req.body;
     const expense = await Expense.findOneAndUpdate(
       { _id: req.params.id, user: new mongoose.Types.ObjectId(req.userId) },
-      { $set: { amount, category: categoryId, date, paymentMethod, notes, merchant } },
+      { $set: { amount, category: categoryId, date, paymentMethod, notes } },
       { new: true, runValidators: true }
     ).populate('category');
     if (!expense) return res.status(404).json({ success: false, message: 'Expense not found' });

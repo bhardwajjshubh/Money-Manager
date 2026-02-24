@@ -24,6 +24,28 @@ npm run dev
 
 Server runs on http://localhost:4000
 
+## One-time duplicate category cleanup
+
+If your database already contains duplicate categories (same name + type for the same user), run:
+
+```powershell
+npm run cleanup:categories
+```
+
+This runs in **dry-run** mode and prints what would be merged.
+
+To apply the cleanup:
+
+```powershell
+npm run cleanup:categories -- --apply
+```
+
+What it does:
+- Keeps the oldest category per user + type + name (case-insensitive)
+- Reassigns related `expenses` and `incomes` to the kept category
+- Reassigns related `budgets` where possible
+- Deletes duplicate category records
+
 ## Auth Endpoints Created
 
 - POST /api/v1/auth/signup

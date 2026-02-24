@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import LoadingState from '../components/LoadingState';
 import api from '../utils/api';
+import { formatDateDDMMYYYY } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
 import { useDataRefresh } from '../context/DataContext';
 
@@ -12,7 +13,14 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedFilterCategoryId, setSelectedFilterCategoryId] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [filteredTotalAmount, setFilteredTotalAmount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
   const [selectedCategoryOption, setSelectedCategoryOption] = useState('');
@@ -20,32 +28,77 @@ export default function Expenses() {
     amount: '',
     categoryId: '',
     date: '',
-    paymentMethod: 'cash',
-    notes: '',
-    merchant: ''
+    paymentMethod: 'upi',
+    notes: ''
   });
 
-  const predefinedCategories = ['Grocery', 'Food', 'Cloth', 'Recharge', 'Transportation', 'Entertainment', 'Utilities', 'Health', 'Education', 'Shopping', 'Other'];
+  const predefinedCategories = ['Grocery', 'Food', 'Cloth', 'Recharge', 'Transportation', 'Entertainment', 'Utilities', 'Health', 'Education', 'Shopping', 'Freelance', 'Other'];
+  const monthOptions = [
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' }
+  ];
+  const currentYearValue = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 10 }, (_, index) => String(currentYearValue - index));
+
+  useEffect(() => {
+    fetchCategoriesOnly();
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentPage, selectedMonth, selectedYear, selectedFilterCategoryId]);
 
   const fetchCategoriesOnly = async () => {
-    const categoriesRes = await api.get('/categories?type=expense');
-    setCategories(categoriesRes.data.data.categories);
+    try {
+      const categoriesRes = await api.get('/categories?type=expense');
+      setCategories(categoriesRes.data.data.categories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
   };
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const [expensesRes, categoriesRes] = await Promise.all([
-        api.get('/expenses'),
-        api.get('/categories?type=expense')
+      const query = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(itemsPerPage)
+      });
+
+      if (selectedMonth) query.set('month', selectedMonth);
+      if (selectedYear) query.set('year', selectedYear);
+      if (selectedFilterCategoryId) query.set('category', selectedFilterCategoryId);
+
+      const [expensesRes, summaryRes] = await Promise.all([
+        api.get(`/expenses?${query.toString()}`),
+        api.get(`/expenses/summary?${query.toString()}`)
       ]);
+
       setExpenses(expensesRes.data.data.expenses);
-      setCategories(categoriesRes.data.data.categories);
+      setTotalExpenses(expensesRes.data.data.total || 0);
+      setTotalPages(expensesRes.data.data.pages || 1);
+
+      const summary = summaryRes.data.data.summary || [];
+      const totalAmount = summary.length > 0 ? (summary[0].total || 0) : 0;
+      setFilteredTotalAmount(totalAmount);
+
+      const backendPage = expensesRes.data.data.page || 1;
+      if (backendPage !== currentPage) {
+        setCurrentPage(backendPage);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
+      setFilteredTotalAmount(0);
     } finally {
       setLoading(false);
     }
@@ -57,16 +110,24 @@ export default function Expenses() {
     try {
       let categoryIdToUse = formData.categoryId;
 
-      // If user typed a custom category, create it first
+      // Reuse existing category by name before creating a new one
       if (!categoryIdToUse && customCategoryName.trim()) {
-        const { data: catRes } = await api.post('/categories', {
-          name: customCategoryName.trim(),
-          type: 'expense',
-          color: '#3B82F6'
-        });
-        categoryIdToUse = catRes.data.category._id;
-        // refresh categories list so it appears next time
-        fetchCategoriesOnly();
+        const normalizedName = customCategoryName.trim().toLowerCase();
+        const existingCategory = categories.find(
+          (category) => category.type === 'expense' && category.name?.trim().toLowerCase() === normalizedName
+        );
+
+        if (existingCategory) {
+          categoryIdToUse = existingCategory._id;
+        } else {
+          const { data: catRes } = await api.post('/categories', {
+            name: customCategoryName.trim(),
+            type: 'expense',
+            color: '#3B82F6'
+          });
+          categoryIdToUse = catRes.data.category._id;
+          fetchCategoriesOnly();
+        }
       }
 
       const payload = {
@@ -74,8 +135,7 @@ export default function Expenses() {
         categoryId: categoryIdToUse,
         date: formData.date,
         paymentMethod: formData.paymentMethod,
-        notes: formData.notes,
-        merchant: formData.merchant
+        notes: formData.notes
       };
 
       if (editingExpenseId) {
@@ -84,11 +144,11 @@ export default function Expenses() {
         await api.post('/expenses', payload);
       }
 
-      setFormData({ amount: '', categoryId: '', date: '', paymentMethod: 'cash', notes: '', merchant: '' });
+      setFormData({ amount: '', categoryId: '', date: '', paymentMethod: 'upi', notes: '' });
       setCustomCategoryName('');
       setEditingExpenseId(null);
       setShowForm(false);
-      fetchData();
+      setCurrentPage(1);
       triggerRefresh();
     } catch (error) {
       console.error('Error saving expense:', error);
@@ -98,22 +158,24 @@ export default function Expenses() {
   };
 
   const handleEdit = (expense) => {
+    const expenseCategoryName = expense.category?.name || '';
+    const isPredefinedCategory = predefinedCategories.includes(expenseCategoryName);
+
     setFormData({
       amount: expense.amount?.toString() || '',
       categoryId: expense.category?._id || '',
       date: expense.date ? expense.date.slice(0, 10) : '',
-      paymentMethod: expense.paymentMethod || 'cash',
-      notes: expense.notes || '',
-      merchant: expense.merchant || ''
+      paymentMethod: expense.paymentMethod || 'upi',
+      notes: expense.notes || ''
     });
-    setCustomCategoryName(expense.category?.name || '');
-    setSelectedCategoryOption(expense.category?.name || '');
+    setCustomCategoryName(expenseCategoryName);
+    setSelectedCategoryOption(isPredefinedCategory ? expenseCategoryName : 'custom');
     setEditingExpenseId(expense._id);
     setShowForm(true);
   };
 
   const handleCancelForm = () => {
-    setFormData({ amount: '', categoryId: '', date: '', paymentMethod: 'cash', notes: '', merchant: '' });
+    setFormData({ amount: '', categoryId: '', date: '', paymentMethod: 'upi', notes: '' });
     setCustomCategoryName('');
     setSelectedCategoryOption('');
     setEditingExpenseId(null);
@@ -124,7 +186,11 @@ export default function Expenses() {
     if (!confirm('Delete this expense?')) return;
     try {
       await api.delete(`/expenses/${id}`);
-      fetchData();
+      if (expenses.length === 1 && currentPage > 1) {
+        setCurrentPage((prev) => prev - 1);
+      } else {
+        fetchData();
+      }
       triggerRefresh();
     } catch (error) {
       console.error('Error deleting expense:', error);
@@ -135,15 +201,9 @@ export default function Expenses() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: user?.currency || 'INR' }).format(amount);
   };
 
-  const getFilteredExpenses = () => {
-    if (!selectedDate) return expenses;
-    return expenses.filter(expense => {
-      const expenseDate = new Date(expense.date).toISOString().split('T')[0];
-      return expenseDate === selectedDate;
-    });
-  };
-
-  const filteredExpenses = getFilteredExpenses();
+  const pageStart = totalExpenses === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const pageEnd = Math.min(currentPage * itemsPerPage, totalExpenses);
+  const hasFilters = Boolean(selectedMonth || selectedYear || selectedFilterCategoryId);
 
   if (loading) return <LoadingState label="Loading expenses" />;
 
@@ -159,32 +219,83 @@ export default function Expenses() {
         </button>
       </div>
 
-      {/* Date Filter Section */}
+      {/* Filter Section */}
       <div className="bg-white shadow rounded-lg p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Date</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+            <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => {
+                setSelectedMonth(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
-            />
+            >
+              <option value="">All Months</option>
+              {monthOptions.map((monthOption) => (
+                <option key={monthOption.value} value={monthOption.value}>{monthOption.label}</option>
+              ))}
+            </select>
           </div>
-          {selectedDate && (
+
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => {
+                setSelectedYear(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
+            >
+              <option value="">All Years</option>
+              {yearOptions.map((yearOption) => (
+                <option key={yearOption} value={yearOption}>{yearOption}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <select
+              value={selectedFilterCategoryId}
+              onChange={(e) => {
+                setSelectedFilterCategoryId(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
+            >
+              <option value="">All Categories</option>
+              {categories.map((category) => (
+                <option key={category._id} value={category._id}>{category.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <button
-              onClick={() => setSelectedDate('')}
+              onClick={() => {
+                setSelectedMonth('');
+                setSelectedYear('');
+                setSelectedFilterCategoryId('');
+                setCurrentPage(1);
+              }}
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
-              Clear Filter
+              Clear Filters
             </button>
-          )}
+          </div>
         </div>
-        {selectedDate && (
+
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <p className="text-sm text-gray-600 mt-2">
-            Showing {filteredExpenses.length} record{filteredExpenses.length !== 1 ? 's' : ''} for {new Date(selectedDate).toLocaleDateString()}
+            Showing {pageStart}-{pageEnd} of {totalExpenses} record{totalExpenses !== 1 ? 's' : ''}
           </p>
-        )}
+          <p className="text-sm font-medium text-gray-800">
+            {hasFilters ? 'Filtered' : 'Overall'} Total Expense: <span className="text-red-600">{formatCurrency(filteredTotalAmount)}</span>
+          </p>
+        </div>
       </div>
 
       {showForm && (
@@ -216,8 +327,19 @@ export default function Expenses() {
                       setSelectedCategoryOption(selectedValue);
                       if (selectedValue && selectedValue !== 'custom') {
                         setCustomCategoryName(selectedValue);
+                        const matchingCategory = categories.find(
+                          (category) => category.type === 'expense' && category.name?.trim().toLowerCase() === selectedValue.toLowerCase()
+                        );
+                        setFormData({
+                          ...formData,
+                          categoryId: matchingCategory?._id || ''
+                        });
                       } else {
                         setCustomCategoryName('');
+                        setFormData({
+                          ...formData,
+                          categoryId: ''
+                        });
                       }
                     }}
                     className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2"
@@ -273,15 +395,6 @@ export default function Expenses() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Merchant</label>
-                <input
-                  type="text"
-                  value={formData.merchant}
-                  onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-gray-700">Notes</label>
                 <input
                   type="text"
@@ -330,17 +443,17 @@ export default function Expenses() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredExpenses.length === 0 ? (
+              {expenses.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                    {selectedDate ? 'No records found for this date' : 'No expenses yet'}
+                    {hasFilters ? 'No records found for selected filters' : 'No expenses yet'}
                   </td>
                 </tr>
               ) : (
-              filteredExpenses.map((expense) => (
+              expenses.map((expense) => (
                 <tr key={expense._id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(expense.date).toLocaleDateString()}
+                    {formatDateDDMMYYYY(expense.date)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <span className="inline-flex items-center">
@@ -376,15 +489,15 @@ export default function Expenses() {
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-3 p-4">
-          {filteredExpenses.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">{selectedDate ? 'No records found for this date' : 'No expenses yet'}</p>
+          {expenses.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">{hasFilters ? 'No records found for selected filters' : 'No expenses yet'}</p>
           ) : (
-            filteredExpenses.map((expense) => (
+            expenses.map((expense) => (
               <div key={expense._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <p className="text-sm text-gray-500">Date</p>
-                    <p className="font-medium text-gray-900">{new Date(expense.date).toLocaleDateString()}</p>
+                    <p className="font-medium text-gray-900">{formatDateDDMMYYYY(expense.date)}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -430,6 +543,30 @@ export default function Expenses() {
             ))
           )}
         </div>
+
+        {totalPages > 1 && (
+          <div className="border-t border-gray-200 px-4 py-3 sm:px-6 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,8 @@ const Category = require('../models/Category');
 
 const router = express.Router();
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Get all categories for user
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -34,7 +36,26 @@ router.post('/',
     
     try {
       const { name, type, color } = req.body;
-      const category = await Category.create({ user: new mongoose.Types.ObjectId(req.userId), name, type, color });
+      const normalizedName = (name || '').trim();
+      const categoryType = type || 'expense';
+
+      const existingCategory = await Category.findOne({
+        user: new mongoose.Types.ObjectId(req.userId),
+        type: categoryType,
+        name: new RegExp(`^${escapeRegex(normalizedName)}$`, 'i')
+      });
+
+      if (existingCategory) {
+        return res.json({ success: true, data: { category: existingCategory, existing: true } });
+      }
+
+      const category = await Category.create({
+        user: new mongoose.Types.ObjectId(req.userId),
+        name: normalizedName,
+        type: categoryType,
+        color
+      });
+
       res.status(201).json({ success: true, data: { category } });
     } catch (err) {
       console.error(err);
