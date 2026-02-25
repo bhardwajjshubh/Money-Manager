@@ -1,7 +1,24 @@
 import { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
 import api, { setAccessToken } from '../utils/api';
 
 const AuthContext = createContext();
+
+const FALLBACK_API_BASE_URLS = [
+  'https://money-manager-backend.onrender.com/api/v1',
+  'https://money-manager.onrender.com/api/v1'
+];
+
+const isMalformedAuthPayload = (data) => {
+  if (!data || typeof data !== 'object') return true;
+  return !data?.data?.accessToken || !data?.data?.user;
+};
+
+const shouldTryFallback = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host !== 'localhost' && host !== '127.0.0.1';
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -48,10 +65,42 @@ export function AuthProvider({ children }) {
   }, [checkAuth]);
 
   const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
-    setAccessToken(data.data.accessToken);
-    setUser(data.data.user);
-    return data;
+    const primaryResponse = await api.post('/auth/login', { email, password });
+
+    if (!isMalformedAuthPayload(primaryResponse.data)) {
+      setAccessToken(primaryResponse.data.data.accessToken);
+      setUser(primaryResponse.data.data.user);
+      return primaryResponse.data;
+    }
+
+    if (!shouldTryFallback()) {
+      throw new Error('Login response was invalid. Check API configuration.');
+    }
+
+    let lastError = new Error('Unable to reach backend API.');
+
+    for (const baseURL of FALLBACK_API_BASE_URLS) {
+      try {
+        const response = await axios.post(
+          `${baseURL}/auth/login`,
+          { email, password },
+          { withCredentials: true, timeout: 8000 }
+        );
+
+        if (isMalformedAuthPayload(response.data)) {
+          continue;
+        }
+
+        api.defaults.baseURL = baseURL;
+        setAccessToken(response.data.data.accessToken);
+        setUser(response.data.data.user);
+        return response.data;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError;
   };
 
   const signup = async (name, email, password) => {
