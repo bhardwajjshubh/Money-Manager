@@ -47,6 +47,11 @@ export default function Dashboard() {
     value: cat.total
   })) || [];
 
+  const categoryLegendData = categoryData.map((item, index) => ({
+    ...item,
+    color: COLORS[index % COLORS.length]
+  }));
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -184,18 +189,32 @@ export default function Dashboard() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={(entry) => entry.name}
+                label={false}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
               >
-                {categoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {categoryLegendData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
+          <div className="mt-4">
+            {categoryLegendData.length > 0 ? (
+              <ul className="space-y-2">
+                {categoryLegendData.map((category, index) => (
+                  <li key={`category-legend-${index}`} className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: category.color }}></span>
+                    <span className="truncate">{category.name}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">No category data available</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
