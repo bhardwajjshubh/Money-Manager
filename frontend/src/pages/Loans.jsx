@@ -251,27 +251,29 @@ export default function Loans() {
             {loan.status !== 'paid' && (
               <div className="mt-4">
                 {showPaymentForm === loan._id ? (
-                  <div className="flex space-x-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <input
                       type="number"
                       step="0.01"
                       placeholder="Amount"
                       value={paymentData.amount}
                       onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
-                      className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                      className="w-full min-w-0 sm:flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
                     />
-                    <button
-                      onClick={() => handlePayment(loan._id)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                    >
-                      Add Payment
-                    </button>
-                    <button
-                      onClick={() => setShowPaymentForm(null)}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-                    >
-                      Cancel
-                    </button>
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
+                      <button
+                        onClick={() => handlePayment(loan._id)}
+                        className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 whitespace-nowrap"
+                      >
+                        Add Payment
+                      </button>
+                      <button
+                        onClick={() => setShowPaymentForm(null)}
+                        className="w-full sm:w-auto px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 whitespace-nowrap"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <button
