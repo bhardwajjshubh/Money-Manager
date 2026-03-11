@@ -18,12 +18,14 @@ const getTransporter = () => {
     return null;
   }
 
+  const useExplicitHost = Boolean(EMAIL_HOST) || (EMAIL_SERVICE || 'gmail').toLowerCase() === 'gmail';
+
   transporter = nodemailer.createTransport(
-    EMAIL_HOST
+    useExplicitHost
       ? {
-          host: EMAIL_HOST,
-          port: EMAIL_PORT,
-          secure: EMAIL_SECURE,
+          host: EMAIL_HOST || 'smtp.gmail.com',
+          port: EMAIL_HOST ? EMAIL_PORT : 587,
+          secure: EMAIL_HOST ? EMAIL_SECURE : false,
           auth: {
             user: EMAIL_USER,
             pass: EMAIL_PASSWORD
