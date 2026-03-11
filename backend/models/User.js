@@ -14,6 +14,8 @@ const userSchema = new mongoose.Schema({
   theme: { type: String, enum: ['light', 'dark'], default: 'light' },
   createdAt: { type: Date, default: Date.now },
   refreshTokens: [refreshTokenSchema],
+  emailVerificationOtpHash: String,
+  emailVerificationOtpExpiry: Date,
   resetPasswordHash: String,
   resetPasswordExpiry: Date,
   isEmailVerified: { type: Boolean, default: true }

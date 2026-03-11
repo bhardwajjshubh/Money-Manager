@@ -48,7 +48,7 @@ const ForgetPassword = () => {
   };
 
   const handleOTPVerifySuccess = (data) => {
-    setResetToken(data.resetToken);
+    setResetToken(data?.data?.resetToken || '');
     setStep(3);
   };
 

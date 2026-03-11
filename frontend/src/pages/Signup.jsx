@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import OtpVerification from './OtpVerification';
 
 export default function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
@@ -30,7 +32,7 @@ export default function Signup() {
 
     try {
       const apiBaseURL = import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/v1';
-      const response = await fetch(`${apiBaseURL}/auth/signup`, {
+      const response = await fetch(`${apiBaseURL}/auth/signup-request-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -40,10 +42,7 @@ export default function Signup() {
       const data = await response.json();
 
       if (data.success) {
-        setShowSuccessPopup(true);
-        setTimeout(() => {
-          navigate('/login', { state: { accountCreated: true } });
-        }, 2000);
+        setStep(2);
       } else {
         setError(data.message || 'Signup failed');
       }
@@ -53,6 +52,52 @@ export default function Signup() {
       setLoading(false);
     }
   };
+
+  const handleVerifySuccess = () => {
+    setShowSuccessPopup(true);
+    setTimeout(() => {
+      navigate('/login', { state: { accountCreated: true } });
+    }, 2000);
+  };
+
+  const handleResendOtp = async () => {
+    const apiBaseURL = import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/v1';
+    const response = await fetch(`${apiBaseURL}/auth/signup-request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name, email, password })
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to resend OTP');
+    }
+  };
+
+  if (step === 2) {
+    return (
+      <>
+        <OtpVerification
+          email={email}
+          purpose="signup"
+          verificationPayload={{ name, password }}
+          onVerifySuccess={handleVerifySuccess}
+          onResendOTP={handleResendOtp}
+          onBack={() => setStep(1)}
+        />
+        {showSuccessPopup && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+              <div className="text-5xl mb-4">✅</div>
+              <h3 className="text-2xl font-bold text-green-600 mb-2">Account Created!</h3>
+              <p className="text-gray-600">Redirecting to login...</p>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   // Signup Form
   return (

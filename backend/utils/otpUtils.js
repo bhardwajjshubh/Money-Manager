@@ -1,6 +1,47 @@
-// Elastic Email API setup (instant activation, no waiting, 100 emails/day free)
-const ELASTIC_EMAIL_API_KEY = process.env.ELASTIC_EMAIL_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL;
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD;
+const EMAIL_SERVICE = process.env.EMAIL_SERVICE;
+const EMAIL_HOST = process.env.EMAIL_HOST;
+const EMAIL_PORT = Number(process.env.EMAIL_PORT || 587);
+const EMAIL_SECURE = process.env.EMAIL_SECURE === 'true' || EMAIL_PORT === 465;
+const FROM_EMAIL = process.env.FROM_EMAIL || EMAIL_USER;
+
+let transporter;
+
+const getTransporter = () => {
+  if (transporter) return transporter;
+
+  if (!EMAIL_USER || !EMAIL_PASSWORD) {
+    return null;
+  }
+
+  transporter = nodemailer.createTransport(
+    EMAIL_HOST
+      ? {
+          host: EMAIL_HOST,
+          port: EMAIL_PORT,
+          secure: EMAIL_SECURE,
+          auth: {
+            user: EMAIL_USER,
+            pass: EMAIL_PASSWORD
+          }
+        }
+      : {
+          service: EMAIL_SERVICE || 'gmail',
+          auth: {
+            user: EMAIL_USER,
+            pass: EMAIL_PASSWORD
+          }
+        }
+  );
+
+  return transporter;
+};
+
+const hashOTP = (value) => crypto.createHash('sha256').update(value).digest('hex');
 
 // Generate random OTP (6 digits)
 const generateOTP = () => {
@@ -12,12 +53,13 @@ const getOTPExpiry = () => {
   return new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 };
 
-// Send OTP via email using Elastic Email API
+// Send OTP via Nodemailer
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   console.log('Sending OTP email to:', email);
 
-  if (!ELASTIC_EMAIL_API_KEY || !FROM_EMAIL) {
-    console.error('❌ Elastic Email not configured: missing ELASTIC_EMAIL_API_KEY or FROM_EMAIL');
+  const mailTransporter = getTransporter();
+  if (!mailTransporter || !FROM_EMAIL) {
+    console.error('Email not configured: missing EMAIL_USER/EMAIL_PASSWORD or FROM_EMAIL');
     return false;
   }
 
@@ -66,48 +108,41 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     </html>
   `;
 
+  const textContent = [
+    purpose === 'signup' ? 'Verify your email for Money Manager.' : 'Reset your Money Manager password.',
+    `Your OTP is: ${otp}`,
+    'This code is valid for 10 minutes.',
+    "If you didn't request this, you can ignore this email."
+  ].join('\n');
+
   try {
-    const response = await fetch('https://api.elasticemail.com/v2/email/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        apikey: ELASTIC_EMAIL_API_KEY,
-        from: FROM_EMAIL,
-        to: email,
-        subject,
-        bodyHtml: htmlContent,
-        isTransactional: 'true'
-      })
+    await mailTransporter.sendMail({
+      from: FROM_EMAIL,
+      to: email,
+      subject,
+      text: textContent,
+      html: htmlContent
     });
 
-    const data = await response.json();
-    
-    if (!response.ok || !data.success) {
-      console.error('❌ Elastic Email API error:', data);
-      return false;
-    }
-
-    console.log('✅ Email sent successfully:', data.data?.messageid || data);
+    console.log('Email sent successfully');
     return true;
   } catch (error) {
-    console.error('❌ Email sending failed:', error?.message || error);
+    console.error('Email sending failed:', error?.message || error);
     return false;
   }
 };
 
 // Verify OTP
-const verifyOTP = (storedOTP, providedOTP, otpExpiry) => {
-  if (!storedOTP || !providedOTP) {
+const verifyOTP = (storedOTPHash, providedOTP, otpExpiry) => {
+  if (!storedOTPHash || !providedOTP) {
     return { valid: false, message: 'OTP not found' };
   }
   
-  if (new Date() > otpExpiry) {
+  if (!otpExpiry || new Date() > otpExpiry) {
     return { valid: false, message: 'OTP has expired' };
   }
   
-  if (storedOTP !== providedOTP) {
+  if (storedOTPHash !== hashOTP(providedOTP)) {
     return { valid: false, message: 'Invalid OTP' };
   }
   
@@ -117,6 +152,7 @@ const verifyOTP = (storedOTP, providedOTP, otpExpiry) => {
 module.exports = {
   generateOTP,
   getOTPExpiry,
+  hashOTP,
   sendOTPEmail,
   verifyOTP
 };

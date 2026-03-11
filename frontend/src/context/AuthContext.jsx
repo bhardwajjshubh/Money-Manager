@@ -104,9 +104,7 @@ export function AuthProvider({ children }) {
   };
 
   const signup = async (name, email, password) => {
-    const { data } = await api.post('/auth/signup', { name, email, password });
-    setAccessToken(data.data.accessToken);
-    setUser(data.data.user);
+    const { data } = await api.post('/auth/signup-request-otp', { name, email, password });
     return data;
   };
 

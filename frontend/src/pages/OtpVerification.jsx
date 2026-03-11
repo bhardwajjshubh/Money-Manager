@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const OtpVerification = ({ email, purpose = 'signup', onVerifySuccess, onResendOTP, onBack }) => {
+const OtpVerification = ({ email, purpose = 'signup', verificationPayload = {}, onVerifySuccess, onResendOTP, onBack }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(120); // 2 minutes before resend
   const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef([]);
+  const isSignupFlow = purpose === 'signup';
 
   useEffect(() => {
     if (timer > 0) {
@@ -57,7 +58,7 @@ const OtpVerification = ({ email, purpose = 'signup', onVerifySuccess, onResendO
         body: JSON.stringify({
           email,
           otp: otpCode,
-          ...(purpose === 'signup' && { name: window.userData?.name, password: window.userData?.password })
+          ...verificationPayload
         }),
         credentials: 'include'
       });
@@ -81,7 +82,13 @@ const OtpVerification = ({ email, purpose = 'signup', onVerifySuccess, onResendO
     setTimer(120);
     setOtp(['', '', '', '', '', '']);
     setError('');
-    await onResendOTP();
+    try {
+      await onResendOTP();
+    } catch (err) {
+      setError(err.message || 'Failed to resend OTP');
+      setCanResend(true);
+      setTimer(0);
+    }
   };
 
   return (
@@ -93,8 +100,8 @@ const OtpVerification = ({ email, purpose = 'signup', onVerifySuccess, onResendO
 
       <div className="w-full max-w-md relative z-10">
         <div className="bg-white bg-opacity-10 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white border-opacity-20">
-          <h2 className="text-3xl font-bold text-white text-center mb-2">Verify Email</h2>
-          <p className="text-blue-100 text-center mb-6">Enter the 6-digit code sent to</p>
+          <h2 className="text-3xl font-bold text-white text-center mb-2">{isSignupFlow ? 'Verify Email' : 'Verify OTP'}</h2>
+          <p className="text-blue-100 text-center mb-6">{isSignupFlow ? 'Enter the 6-digit code sent to' : 'Enter the 6-digit reset code sent to'}</p>
           <p className="text-white font-semibold text-center mb-8">{email}</p>
 
           <form onSubmit={handleVerifyOtp}>
