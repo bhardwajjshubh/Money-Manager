@@ -9,38 +9,55 @@ const EMAIL_PORT = Number(process.env.EMAIL_PORT || 587);
 const EMAIL_SECURE = process.env.EMAIL_SECURE === 'true' || EMAIL_PORT === 465;
 const FROM_EMAIL = process.env.FROM_EMAIL || EMAIL_USER;
 
-let transporter;
+const SMTP_TIME_LIMITS = {
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000
+};
 
-const getTransporter = () => {
-  if (transporter) return transporter;
+const getTransportConfigs = () => {
+  if (!EMAIL_USER || !EMAIL_PASSWORD) return [];
 
-  if (!EMAIL_USER || !EMAIL_PASSWORD) {
-    return null;
+  const auth = { user: EMAIL_USER, pass: EMAIL_PASSWORD };
+
+  if (EMAIL_HOST) {
+    return [{
+      host: EMAIL_HOST,
+      port: EMAIL_PORT,
+      secure: EMAIL_SECURE,
+      auth,
+      ...SMTP_TIME_LIMITS
+    }];
   }
 
-  const useExplicitHost = Boolean(EMAIL_HOST) || (EMAIL_SERVICE || 'gmail').toLowerCase() === 'gmail';
+  const normalizedService = (EMAIL_SERVICE || 'gmail').toLowerCase();
 
-  transporter = nodemailer.createTransport(
-    useExplicitHost
-      ? {
-          host: EMAIL_HOST || 'smtp.gmail.com',
-          port: EMAIL_HOST ? EMAIL_PORT : 587,
-          secure: EMAIL_HOST ? EMAIL_SECURE : false,
-          auth: {
-            user: EMAIL_USER,
-            pass: EMAIL_PASSWORD
-          }
-        }
-      : {
-          service: EMAIL_SERVICE || 'gmail',
-          auth: {
-            user: EMAIL_USER,
-            pass: EMAIL_PASSWORD
-          }
-        }
-  );
+  // For Gmail, try STARTTLS first (587), then SSL (465) as fallback.
+  if (normalizedService === 'gmail') {
+    return [
+      {
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        auth,
+        ...SMTP_TIME_LIMITS
+      },
+      {
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth,
+        ...SMTP_TIME_LIMITS
+      }
+    ];
+  }
 
-  return transporter;
+  return [{
+    service: EMAIL_SERVICE,
+    auth,
+    ...SMTP_TIME_LIMITS
+  }];
 };
 
 const hashOTP = (value) => crypto.createHash('sha256').update(value).digest('hex');
@@ -59,8 +76,8 @@ const getOTPExpiry = () => {
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   console.log('Sending OTP email to:', email);
 
-  const mailTransporter = getTransporter();
-  if (!mailTransporter || !FROM_EMAIL) {
+  const transportConfigs = getTransportConfigs();
+  if (transportConfigs.length === 0 || !FROM_EMAIL) {
     console.error('Email not configured: missing EMAIL_USER/EMAIL_PASSWORD or FROM_EMAIL');
     return false;
   }
@@ -117,21 +134,28 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     "If you didn't request this, you can ignore this email."
   ].join('\n');
 
-  try {
-    await mailTransporter.sendMail({
-      from: FROM_EMAIL,
-      to: email,
-      subject,
-      text: textContent,
-      html: htmlContent
-    });
+  for (const config of transportConfigs) {
+    try {
+      const transportLabel = config.host ? `${config.host}:${config.port}` : `service:${config.service}`;
+      const mailTransporter = nodemailer.createTransport(config);
 
-    console.log('Email sent successfully');
-    return true;
-  } catch (error) {
-    console.error('Email sending failed:', error?.message || error);
-    return false;
+      await mailTransporter.sendMail({
+        from: FROM_EMAIL,
+        to: email,
+        subject,
+        text: textContent,
+        html: htmlContent
+      });
+
+      console.log('Email sent successfully via', transportLabel);
+      return true;
+    } catch (error) {
+      const transportLabel = config.host ? `${config.host}:${config.port}` : `service:${config.service}`;
+      console.error(`Email sending failed via ${transportLabel}:`, error?.message || error);
+    }
   }
+
+  return false;
 };
 
 // Verify OTP
