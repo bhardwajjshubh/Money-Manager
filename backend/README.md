@@ -17,6 +17,24 @@ Copy-Item .env.example .env
 
 3. Edit `.env` and set your MongoDB URI and JWT secret.
 
+### OTP Email Provider (Recommended on Render)
+
+Use Resend API for OTP delivery:
+
+```env
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_FROM_EMAIL=Money Manager <onboarding@resend.dev>
+```
+
+Optional SMTP fallback (only used if Resend fails or is not configured):
+
+```env
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+EMAIL_SERVICE=gmail
+FROM_EMAIL=your-email@gmail.com
+```
+
 4. Run dev server:
 ```powershell
 npm run dev

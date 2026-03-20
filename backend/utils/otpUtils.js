@@ -1,6 +1,9 @@
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL;
+
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD;
 const EMAIL_SERVICE = process.env.EMAIL_SERVICE;
@@ -72,21 +75,12 @@ const getOTPExpiry = () => {
   return new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 };
 
-// Send OTP via Nodemailer
-const sendOTPEmail = async (email, otp, purpose = 'verification') => {
-  console.log('Sending OTP email to:', email);
-
-  const transportConfigs = getTransportConfigs();
-  if (transportConfigs.length === 0 || !FROM_EMAIL) {
-    console.error('Email not configured: missing EMAIL_USER/EMAIL_PASSWORD or FROM_EMAIL');
-    return false;
-  }
-
-  const subject = purpose === 'signup' 
+const buildEmailContent = (otp, purpose) => {
+  const subject = purpose === 'signup'
     ? 'Verify Your Email - Money Manager'
     : 'Password Reset OTP - Money Manager';
-  
-  const htmlContent = `
+
+  const html = `
     <!DOCTYPE html>
     <html>
       <head>
@@ -108,7 +102,7 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
           </div>
           <div class="content">
             <p>Hello,</p>
-            <p>${purpose === 'signup' 
+            <p>${purpose === 'signup'
               ? 'Thank you for signing up to Money Manager! Please verify your email address using the OTP below.'
               : 'We received a request to reset your password. Use the OTP below to proceed.'
             }</p>
@@ -116,7 +110,7 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
               <div class="otp-code">${otp}</div>
               <div class="expiry">Valid for 10 minutes</div>
             </div>
-            <p>If you didn't request this, please ignore this email.</p>
+            <p>If you did not request this, please ignore this email.</p>
             <p>Best regards,<br><strong>Money Manager Team</strong></p>
           </div>
           <div class="footer">
@@ -127,12 +121,61 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     </html>
   `;
 
-  const textContent = [
+  const text = [
     purpose === 'signup' ? 'Verify your email for Money Manager.' : 'Reset your Money Manager password.',
     `Your OTP is: ${otp}`,
     'This code is valid for 10 minutes.',
-    "If you didn't request this, you can ignore this email."
+    "If you did not request this, you can ignore this email."
   ].join('\n');
+
+  return { subject, html, text };
+};
+
+const sendOTPViaResend = async (email, subject, html, text) => {
+  if (!RESEND_API_KEY) return false;
+
+  const from = RESEND_FROM_EMAIL || FROM_EMAIL;
+  if (!from) {
+    console.error('Resend not configured: missing RESEND_FROM_EMAIL (or FROM_EMAIL)');
+    return false;
+  }
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from,
+        to: [email],
+        subject,
+        html,
+        text
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Resend API error (${response.status}):`, errorText);
+      return false;
+    }
+
+    console.log('Email sent successfully via Resend API');
+    return true;
+  } catch (error) {
+    console.error('Resend request failed:', error?.message || error);
+    return false;
+  }
+};
+
+const sendOTPViaSmtp = async (email, subject, html, text) => {
+  const transportConfigs = getTransportConfigs();
+  if (transportConfigs.length === 0 || !FROM_EMAIL) {
+    console.error('SMTP email not configured: missing EMAIL_USER/EMAIL_PASSWORD or FROM_EMAIL');
+    return false;
+  }
 
   for (const config of transportConfigs) {
     try {
@@ -143,8 +186,8 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
         from: FROM_EMAIL,
         to: email,
         subject,
-        text: textContent,
-        html: htmlContent
+        text,
+        html
       });
 
       console.log('Email sent successfully via', transportLabel);
@@ -156,6 +199,17 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   }
 
   return false;
+};
+
+// Send OTP via Resend API first, then SMTP fallback
+const sendOTPEmail = async (email, otp, purpose = 'verification') => {
+  console.log('Sending OTP email to:', email);
+  const { subject, html, text } = buildEmailContent(otp, purpose);
+
+  const sentByResend = await sendOTPViaResend(email, subject, html, text);
+  if (sentByResend) return true;
+
+  return sendOTPViaSmtp(email, subject, html, text);
 };
 
 // Verify OTP
