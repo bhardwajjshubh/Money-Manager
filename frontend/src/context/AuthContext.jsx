@@ -1,6 +1,16 @@
 import { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import api, { setAccessToken } from '../utils/api';
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  reload
+} from 'firebase/auth';
+import { firebaseAuth } from '../utils/firebase';
 
 const AuthContext = createContext();
 
@@ -64,8 +74,9 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, [checkAuth]);
 
-  const login = async (email, password) => {
-    const primaryResponse = await api.post('/auth/login', { email, password });
+  const completeFirebaseSession = async (idToken, name) => {
+    const payload = { idToken, name };
+    const primaryResponse = await api.post('/auth/firebase-auth', payload);
 
     if (!isMalformedAuthPayload(primaryResponse.data)) {
       setAccessToken(primaryResponse.data.data.accessToken);
@@ -82,8 +93,8 @@ export function AuthProvider({ children }) {
     for (const baseURL of FALLBACK_API_BASE_URLS) {
       try {
         const response = await axios.post(
-          `${baseURL}/auth/login`,
-          { email, password },
+          `${baseURL}/auth/firebase-auth`,
+          payload,
           { withCredentials: true, timeout: 8000 }
         );
 
@@ -103,9 +114,41 @@ export function AuthProvider({ children }) {
     throw lastError;
   };
 
+  const login = async (email, password) => {
+    const credentials = await signInWithEmailAndPassword(firebaseAuth, email, password);
+    await reload(credentials.user);
+
+    if (!credentials.user.emailVerified) {
+      await sendEmailVerification(credentials.user);
+      await signOut(firebaseAuth);
+      throw new Error('Email is not verified. A new verification email has been sent.');
+    }
+
+    const idToken = await credentials.user.getIdToken(true);
+    return completeFirebaseSession(idToken, credentials.user.displayName || email.split('@')[0]);
+  };
+
   const signup = async (name, email, password) => {
-    const { data } = await api.post('/auth/signup-request-otp', { name, email, password });
-    return data;
+    const credentials = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+    if (name) {
+      await updateProfile(credentials.user, { displayName: name });
+    }
+
+    await sendEmailVerification(credentials.user);
+    await signOut(firebaseAuth);
+
+    return {
+      success: true,
+      message: 'Verification email sent. Please verify your email and then log in.'
+    };
+  };
+
+  const requestPasswordReset = async (email) => {
+    await sendPasswordResetEmail(firebaseAuth, email);
+    return {
+      success: true,
+      message: 'Password reset email sent. Check your inbox.'
+    };
   };
 
   const logout = async () => {
@@ -114,12 +157,19 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error('Logout error:', error);
     }
+
+    try {
+      await signOut(firebaseAuth);
+    } catch (error) {
+      console.error('Firebase logout error:', error);
+    }
+
     setAccessToken(null);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, signup, logout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, signup, requestPasswordReset, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

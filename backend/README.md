@@ -17,23 +17,21 @@ Copy-Item .env.example .env
 
 3. Edit `.env` and set your MongoDB URI and JWT secret.
 
-### OTP Email Provider (Recommended on Render)
+## Firebase Auth Integration (Email Verification + Password Reset)
 
-Use Resend API for OTP delivery:
+This backend now supports Firebase-authenticated login via ID token exchange.
 
-```env
-RESEND_API_KEY=re_xxxxxxxxx
-RESEND_FROM_EMAIL=Money Manager <onboarding@resend.dev>
-```
-
-Optional SMTP fallback (only used if Resend fails or is not configured):
+Set these env vars in backend:
 
 ```env
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASSWORD=your-app-password
-EMAIL_SERVICE=gmail
-FROM_EMAIL=your-email@gmail.com
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 ```
+
+Endpoint used by frontend after Firebase login:
+
+- POST /api/v1/auth/firebase-auth
 
 4. Run dev server:
 ```powershell
@@ -66,8 +64,8 @@ What it does:
 
 ## Auth Endpoints Created
 
-- POST /api/v1/auth/signup
 - POST /api/v1/auth/login
+- POST /api/v1/auth/firebase-auth
 - POST /api/v1/auth/refresh
 - POST /api/v1/auth/logout
 

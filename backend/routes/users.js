@@ -9,7 +9,7 @@ const router = express.Router();
 // Get current user profile
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-passwordHash -refreshTokens -resetPasswordHash -resetPasswordExpiry -emailVerificationOtpHash -emailVerificationOtpExpiry');
+    const user = await User.findById(req.userId).select('-passwordHash -refreshTokens');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, data: { user } });
   } catch (err) {
@@ -34,7 +34,7 @@ router.patch('/me',
         req.userId,
         { $set: { name, currency, theme } },
         { new: true, runValidators: true }
-      ).select('-passwordHash -refreshTokens -resetPasswordHash -resetPasswordExpiry -emailVerificationOtpHash -emailVerificationOtpExpiry');
+      ).select('-passwordHash -refreshTokens');
       
       res.json({ success: true, data: { user } });
     } catch (err) {
