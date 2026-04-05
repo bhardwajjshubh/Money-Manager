@@ -122,6 +122,28 @@ router.post('/firebase-auth',
   }
 );
 
+router.post('/forgot-password-check',
+  body('email').isEmail().normalizeEmail(),
+  async (req, res) => {
+    if (!validateRequest(req, res)) return;
+
+    const { email } = req.body;
+
+    try {
+      const user = await User.findOne({ email }).select('_id');
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'Email not registered' });
+      }
+
+      return res.json({ success: true, message: 'Email is registered' });
+    } catch (err) {
+      console.error('Forgot password email check failed:', err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  }
+);
+
 router.post('/refresh', async (req, res) => {
   const token = req.cookies['refreshToken'];
   if (!token) return res.status(401).json({ success: false, message: 'Missing refresh token' });

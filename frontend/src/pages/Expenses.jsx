@@ -3,11 +3,9 @@ import LoadingState from '../components/LoadingState';
 import api from '../utils/api';
 import { formatDateDDMMYYYY } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
-import { useDataRefresh } from '../context/DataContext';
 
 export default function Expenses() {
   const { user } = useAuth();
-  const { triggerRefresh } = useDataRefresh();
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +22,8 @@ export default function Expenses() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
   const [selectedCategoryOption, setSelectedCategoryOption] = useState('');
+  const [isMultiAmountMode, setIsMultiAmountMode] = useState(false);
+  const [splitAmounts, setSplitAmounts] = useState(['']);
   const [formData, setFormData] = useState({
     amount: '',
     categoryId: '',
@@ -32,7 +32,7 @@ export default function Expenses() {
     notes: ''
   });
 
-  const predefinedCategories = ['Grocery', 'Food', 'Cloth', 'Recharge', 'Transportation', 'Entertainment', 'Utilities', 'Health', 'Education', 'Shopping', 'Freelance', 'Other'];
+  const predefinedCategories = ['Grocery', 'Food', 'Cloth', 'Recharge', 'Transportation', 'Entertainment', 'Utilities', 'Health', 'Education', 'Shopping', 'Freelance', 'Family Support', 'Other'];
   const monthOptions = [
     { value: '1', label: 'January' },
     { value: '2', label: 'February' },
@@ -57,6 +57,59 @@ export default function Expenses() {
   useEffect(() => {
     fetchData();
   }, [currentPage, selectedMonth, selectedYear, selectedFilterCategoryId]);
+
+  const calculateSplitTotal = (amountList) => {
+    return amountList.reduce((sum, amount) => {
+      const value = Number(amount);
+      return Number.isFinite(value) && value > 0 ? sum + value : sum;
+    }, 0);
+  };
+
+  const formatAmountForInput = (amount) => {
+    const rounded = Math.round(amount * 100) / 100;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+  };
+
+  const updateSplitAmounts = (nextAmounts) => {
+    setSplitAmounts(nextAmounts);
+    const total = calculateSplitTotal(nextAmounts);
+    setFormData((prev) => ({
+      ...prev,
+      amount: total > 0 ? formatAmountForInput(total) : ''
+    }));
+  };
+
+  const handleSplitAmountChange = (index, value) => {
+    const nextAmounts = [...splitAmounts];
+    nextAmounts[index] = value;
+    updateSplitAmounts(nextAmounts);
+  };
+
+  const addSplitAmountField = () => {
+    updateSplitAmounts([...splitAmounts, '']);
+  };
+
+  const removeSplitAmountField = (index) => {
+    if (splitAmounts.length === 1) {
+      updateSplitAmounts(['']);
+      return;
+    }
+
+    const nextAmounts = splitAmounts.filter((_, currentIndex) => currentIndex !== index);
+    updateSplitAmounts(nextAmounts);
+  };
+
+  const handleMultiAmountToggle = (enabled) => {
+    setIsMultiAmountMode(enabled);
+
+    if (enabled) {
+      const initialAmounts = formData.amount ? [formData.amount] : [''];
+      updateSplitAmounts(initialAmounts);
+      return;
+    }
+
+    setSplitAmounts(['']);
+  };
 
   const fetchCategoriesOnly = async () => {
     try {
@@ -130,8 +183,14 @@ export default function Expenses() {
         }
       }
 
+      const normalizedAmount = Number(formData.amount);
+      if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+        alert('Please enter a valid amount greater than 0.');
+        return;
+      }
+
       const payload = {
-        amount: Number(formData.amount),
+        amount: normalizedAmount,
         categoryId: categoryIdToUse,
         date: formData.date,
         paymentMethod: formData.paymentMethod,
@@ -147,9 +206,11 @@ export default function Expenses() {
       setFormData({ amount: '', categoryId: '', date: '', paymentMethod: 'upi', notes: '' });
       setCustomCategoryName('');
       setEditingExpenseId(null);
+      setIsMultiAmountMode(false);
+      setSplitAmounts(['']);
       setShowForm(false);
       setCurrentPage(1);
-      triggerRefresh();
+      await fetchData();
     } catch (error) {
       console.error('Error saving expense:', error);
     } finally {
@@ -170,6 +231,8 @@ export default function Expenses() {
     });
     setCustomCategoryName(expenseCategoryName);
     setSelectedCategoryOption(isPredefinedCategory ? expenseCategoryName : 'custom');
+    setIsMultiAmountMode(false);
+    setSplitAmounts([expense.amount?.toString() || '']);
     setEditingExpenseId(expense._id);
     setShowForm(true);
   };
@@ -179,6 +242,8 @@ export default function Expenses() {
     setCustomCategoryName('');
     setSelectedCategoryOption('');
     setEditingExpenseId(null);
+    setIsMultiAmountMode(false);
+    setSplitAmounts(['']);
     setShowForm(false);
   };
 
@@ -189,9 +254,8 @@ export default function Expenses() {
       if (expenses.length === 1 && currentPage > 1) {
         setCurrentPage((prev) => prev - 1);
       } else {
-        fetchData();
+        await fetchData();
       }
-      triggerRefresh();
     } catch (error) {
       console.error('Error deleting expense:', error);
     }
@@ -308,14 +372,59 @@ export default function Expenses() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Amount</label>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    id="multi-amount-mode"
+                    type="checkbox"
+                    checked={isMultiAmountMode}
+                    onChange={(e) => handleMultiAmountToggle(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="multi-amount-mode" className="text-sm text-gray-700">
+                    Add multiple spends and auto-sum
+                  </label>
+                </div>
                 <input
                   type="number"
                   required
                   step="0.01"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  readOnly={isMultiAmountMode}
+                  placeholder={isMultiAmountMode ? 'Calculated total amount' : ''}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
                 />
+                {isMultiAmountMode && (
+                  <div className="mt-3 space-y-2">
+                    {splitAmounts.map((splitAmount, index) => (
+                      <div key={`split-amount-${index}`} className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={splitAmount}
+                          onChange={(e) => handleSplitAmountChange(index, e.target.value)}
+                          placeholder={`Spend ${index + 1}`}
+                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeSplitAmountField(index)}
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addSplitAmountField}
+                      className="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                    >
+                      + Add another spend
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Category</label>

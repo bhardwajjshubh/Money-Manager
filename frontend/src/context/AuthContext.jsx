@@ -144,11 +144,31 @@ export function AuthProvider({ children }) {
   };
 
   const requestPasswordReset = async (email) => {
-    await sendPasswordResetEmail(firebaseAuth, email);
-    return {
-      success: true,
-      message: 'Password reset email sent. Check your inbox.'
-    };
+    const normalizedEmail = email.trim().toLowerCase();
+
+    try {
+      await api.post('/auth/forgot-password-check', { email: normalizedEmail });
+    } catch (error) {
+      const backendMessage = error?.response?.data?.message;
+      if (backendMessage) {
+        throw new Error(backendMessage);
+      }
+      throw new Error('Unable to verify email right now. Please try again.');
+    }
+
+    try {
+      await sendPasswordResetEmail(firebaseAuth, normalizedEmail);
+      return {
+        success: true,
+        message: 'Password reset email sent. Check your inbox.'
+      };
+    } catch (error) {
+      const firebaseCode = error?.code;
+      if (firebaseCode === 'auth/invalid-email') {
+        throw new Error('Please enter a valid email address.');
+      }
+      throw new Error('Failed to send password reset email. Please try again.');
+    }
   };
 
   const logout = async () => {

@@ -127,12 +127,12 @@ export default function Income() {
       }
 
       setFormData({ amount: '', source: '', date: '', notes: '', savingsGoalId: '' });
-  setSelectedSourceOption('');
-  setCustomSourceName('');
+      setSelectedSourceOption('');
+      setCustomSourceName('');
       setEditingIncomeId(null);
       setShowForm(false);
-  setCurrentPage(1);
-      triggerRefresh();
+      setCurrentPage(1);
+      await fetchIncomes();
     } catch (error) {
       console.error('Error saving income:', error);
     } finally {
@@ -172,9 +172,8 @@ export default function Income() {
       if (incomes.length === 1 && currentPage > 1) {
         setCurrentPage((prev) => prev - 1);
       } else {
-        fetchIncomes();
+        await fetchIncomes();
       }
-      triggerRefresh();
     } catch (error) {
       console.error('Error deleting income:', error);
     }
