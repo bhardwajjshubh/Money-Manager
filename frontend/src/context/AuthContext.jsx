@@ -19,6 +19,8 @@ const FALLBACK_API_BASE_URLS = [
   'https://money-manager.onrender.com/api/v1'
 ];
 
+const AUTH_REQUEST_TIMEOUT_MS = 20000;
+
 const isMalformedAuthPayload = (data) => {
   if (!data || typeof data !== 'object') return true;
   return !data?.data?.accessToken || !data?.data?.user;
@@ -28,6 +30,12 @@ const shouldTryFallback = () => {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname;
   return host !== 'localhost' && host !== '127.0.0.1';
+};
+
+const isNetworkOrTimeoutError = (error) => {
+  const code = error?.code;
+  const message = String(error?.message || '').toLowerCase();
+  return code === 'ECONNABORTED' || message.includes('timeout') || message.includes('network error');
 };
 
 export function AuthProvider({ children }) {
@@ -76,12 +84,26 @@ export function AuthProvider({ children }) {
 
   const completeFirebaseSession = async (idToken, name) => {
     const payload = { idToken, name };
-    const primaryResponse = await api.post('/auth/firebase-auth', payload);
+    try {
+      const primaryResponse = await api.post('/auth/firebase-auth', payload, {
+        timeout: AUTH_REQUEST_TIMEOUT_MS
+      });
 
-    if (!isMalformedAuthPayload(primaryResponse.data)) {
-      setAccessToken(primaryResponse.data.data.accessToken);
-      setUser(primaryResponse.data.data.user);
-      return primaryResponse.data;
+      if (!isMalformedAuthPayload(primaryResponse.data)) {
+        setAccessToken(primaryResponse.data.data.accessToken);
+        setUser(primaryResponse.data.data.user);
+        return primaryResponse.data;
+      }
+    } catch (error) {
+      // For auth errors from primary API (invalid token, unverified email), surface immediately.
+      if (error?.response?.status && error.response.status < 500) {
+        throw error;
+      }
+
+      // Network/timeout/server issues can recover by trying explicit fallback APIs.
+      if (!shouldTryFallback() || !isNetworkOrTimeoutError(error)) {
+        throw error;
+      }
     }
 
     if (!shouldTryFallback()) {
@@ -95,7 +117,7 @@ export function AuthProvider({ children }) {
         const response = await axios.post(
           `${baseURL}/auth/firebase-auth`,
           payload,
-          { withCredentials: true, timeout: 8000 }
+          { withCredentials: true, timeout: AUTH_REQUEST_TIMEOUT_MS }
         );
 
         if (isMalformedAuthPayload(response.data)) {

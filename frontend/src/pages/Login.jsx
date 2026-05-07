@@ -22,7 +22,12 @@ export default function Login() {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      setError(err?.message || err?.response?.data?.message || 'Login failed');
+      const message = err?.response?.data?.message || err?.message || 'Login failed';
+      if (String(message).toLowerCase().includes('timeout')) {
+        setError('Server is taking longer than usual. Please wait a few seconds and try again.');
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
