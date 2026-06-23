@@ -4,19 +4,34 @@ import api from '../utils/api';
 import { formatDateDDMMYYYY } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
 import { useDataRefresh } from '../context/DataContext';
+import { useLocation } from 'react-router-dom';
 
 export default function Income() {
   const { user } = useAuth();
   const { triggerRefresh } = useDataRefresh();
+  const location = useLocation();
+
+  const getFiltersFromSearch = (search) => {
+    const params = new URLSearchParams(search);
+
+    return {
+      month: params.get('month') || '',
+      year: params.get('year') || '',
+      source: params.get('source') || ''
+    };
+  };
+
+  const initialFilters = getFiltersFromSearch(location.search);
+
   const formSectionRef = useRef(null);
   const [incomes, setIncomes] = useState([]);
   const [savingsGoals, setSavingsGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingIncomeId, setEditingIncomeId] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
-  const [selectedSourceFilter, setSelectedSourceFilter] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(initialFilters.month);
+  const [selectedYear, setSelectedYear] = useState(initialFilters.year);
+  const [selectedSourceFilter, setSelectedSourceFilter] = useState(initialFilters.source);
   const [sourceFilterOptions, setSourceFilterOptions] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -48,6 +63,15 @@ export default function Income() {
   useEffect(() => {
     fetchSavingsGoals();
   }, []);
+
+  useEffect(() => {
+    const nextFilters = getFiltersFromSearch(location.search);
+
+    setSelectedMonth(nextFilters.month);
+    setSelectedYear(nextFilters.year);
+    setSelectedSourceFilter(nextFilters.source);
+    setCurrentPage(1);
+  }, [location.search]);
 
   useEffect(() => {
     fetchIncomes();

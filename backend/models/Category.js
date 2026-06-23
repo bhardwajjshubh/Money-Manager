@@ -5,7 +5,14 @@ const categorySchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   color: { type: String, default: '#3B82F6' },
   type: { type: String, enum: ['expense', 'income'], default: 'expense' },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  subcategories: [
+    {
+      _id: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() },
+      name: { type: String, required: true, trim: true },
+      color: { type: String }
+    }
+  ]
 });
 
 categorySchema.index({ user: 1, name: 1 });

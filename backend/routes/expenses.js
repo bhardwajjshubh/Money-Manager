@@ -3,11 +3,12 @@ const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const authenticate = require('../middleware/auth');
 const Expense = require('../models/Expense');
+const Category = require('../models/Category');
 
 const router = express.Router();
 
 const buildExpenseFilter = (query, userId) => {
-  const { from, to, category, q, paymentMethod, month, year } = query;
+  const { from, to, category, subcategory, q, paymentMethod, month, year } = query;
   const filter = { user: new mongoose.Types.ObjectId(userId) };
 
   const monthNumber = month ? parseInt(month, 10) : null;
@@ -51,6 +52,16 @@ const buildExpenseFilter = (query, userId) => {
     }
     filter.category = new mongoose.Types.ObjectId(category);
   }
+
+  if (subcategory) {
+    if (!mongoose.Types.ObjectId.isValid(subcategory)) {
+      const error = new Error('Invalid subcategory id.');
+      error.status = 400;
+      throw error;
+    }
+    filter.subcategoryId = new mongoose.Types.ObjectId(subcategory);
+  }
+
   if (paymentMethod) filter.paymentMethod = paymentMethod;
   if (q) {
     filter.$or = [{ notes: new RegExp(q, 'i') }];
@@ -90,6 +101,7 @@ router.post('/',
   authenticate,
   body('amount').isFloat({ min: 0 }),
   body('categoryId').isMongoId(),
+  body('subcategoryId').optional().isMongoId(),
   body('date').isISO8601(),
   body('paymentMethod').optional().trim(),
   body('notes').optional().trim(),
@@ -98,11 +110,24 @@ router.post('/',
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
     
     try {
-      const { amount, categoryId, date, paymentMethod, notes } = req.body;
+      const { amount, categoryId, date, paymentMethod, notes, subcategoryId } = req.body;
+
+      let subcategoryName = undefined;
+      if (subcategoryId) {
+        const cat = await Category.findOne(
+          { _id: categoryId, 'subcategories._id': subcategoryId },
+          { 'subcategories.$': 1 }
+        );
+        if (!cat) return res.status(400).json({ success: false, message: 'Subcategory not found for the given category' });
+        subcategoryName = cat.subcategories[0].name;
+      }
+
       const expense = await Expense.create({
         user: new mongoose.Types.ObjectId(req.userId),
         amount,
         category: categoryId,
+        subcategoryId: subcategoryId || null,
+        subcategoryName,
         date,
         paymentMethod,
         notes
@@ -123,8 +148,10 @@ router.get('/summary', authenticate, async (req, res) => {
     const filter = buildExpenseFilter(req.query, req.userId);
     
     let groupField = null;
+    const groupBySubcategory = groupBy === 'subcategory';
     if (groupBy === 'category') groupField = '$category';
     else if (groupBy === 'month') groupField = { $month: '$date' };
+    else if (groupBySubcategory) groupField = { category: '$category', subcategoryId: '$subcategoryId' };
     
     const pipeline = [{ $match: filter }];
     
@@ -136,7 +163,33 @@ router.get('/summary', authenticate, async (req, res) => {
           count: { $sum: 1 }
         }
       });
-      if (groupBy === 'category') {
+      if (groupBySubcategory) {
+        pipeline.push({
+          $lookup: {
+            from: 'categories',
+            localField: '_id.category',
+            foreignField: '_id',
+            as: 'category'
+          }
+        });
+        pipeline.push({ $unwind: '$category' });
+        pipeline.push({
+          $addFields: {
+            subcategory: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: '$category.subcategories',
+                    as: 's',
+                    cond: { $eq: ['$$s._id', '$_id.subcategoryId'] }
+                  }
+                },
+                0
+              ]
+            }
+          }
+        });
+      } else if (groupBy === 'category') {
         pipeline.push({ $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } });
         pipeline.push({ $unwind: '$category' });
       }
@@ -171,10 +224,21 @@ router.get('/:id', authenticate, async (req, res) => {
 // Update expense
 router.patch('/:id', authenticate, async (req, res) => {
   try {
-    const { amount, categoryId, date, paymentMethod, notes } = req.body;
+    const { amount, categoryId, date, paymentMethod, notes, subcategoryId } = req.body;
+
+    let subcategoryName = undefined;
+    if (subcategoryId) {
+      const cat = await Category.findOne(
+        { _id: categoryId, 'subcategories._id': subcategoryId },
+        { 'subcategories.$': 1 }
+      );
+      if (!cat) return res.status(400).json({ success: false, message: 'Subcategory not found for the given category' });
+      subcategoryName = cat.subcategories[0].name;
+    }
+
     const expense = await Expense.findOneAndUpdate(
       { _id: req.params.id, user: new mongoose.Types.ObjectId(req.userId) },
-      { $set: { amount, category: categoryId, date, paymentMethod, notes } },
+      { $set: { amount, category: categoryId, subcategoryId: subcategoryId || null, subcategoryName, date, paymentMethod, notes } },
       { new: true, runValidators: true }
     ).populate('category');
     if (!expense) return res.status(404).json({ success: false, message: 'Expense not found' });

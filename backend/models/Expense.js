@@ -6,10 +6,13 @@ const expenseSchema = new mongoose.Schema({
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   paymentMethod: { type: String, default: 'upi', trim: true },
   date: { type: Date, required: true, index: true },
-  notes: { type: String, trim: true }
+  notes: { type: String, trim: true },
+  subcategoryId: { type: mongoose.Schema.Types.ObjectId },
+  subcategoryName: { type: String, trim: true }
 }, { timestamps: true });
 
 expenseSchema.index({ user: 1, date: -1 });
 expenseSchema.index({ user: 1, category: 1 });
+expenseSchema.index({ user: 1, category: 1, subcategoryId: 1 });
 
 module.exports = mongoose.model('Expense', expenseSchema);

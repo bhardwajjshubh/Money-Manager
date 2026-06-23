@@ -20,6 +20,55 @@ const InputField = ({ label, icon, type = 'text', value, onChange, disabled = fa
   </div>
 );
 
+const PasswordField = ({ label, value, onChange, showPassword, onToggleShow, name = '' }) => (
+  <div className="group">
+    <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+    <div className="relative">
+      <input
+        type={showPassword ? 'text' : 'password'}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder="Enter your password"
+        className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg transition-all duration-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+      />
+      <button
+        type="button"
+        onClick={onToggleShow}
+        className="absolute right-3 top-2.5 text-lg hover:scale-110 transition-transform"
+      >
+        {showPassword ? '👁️' : '👁️‍🗨️'}
+      </button>
+    </div>
+  </div>
+);
+
+const StrengthIndicator = ({ strength }) => {
+  if (!strength) return null;
+  const colors = {
+    weak: { bg: 'bg-red-200', bar: 'bg-red-500', text: 'text-red-600' },
+    medium: { bg: 'bg-yellow-200', bar: 'bg-yellow-500', text: 'text-yellow-600' },
+    strong: { bg: 'bg-green-200', bar: 'bg-green-500', text: 'text-green-600' }
+  };
+  const color = colors[strength];
+
+  return (
+    <div className="mt-2">
+      <div className={`h-2 rounded-full ${color.bg} overflow-hidden`}>
+        <div
+          className={`h-full ${color.bar} transition-all duration-300`}
+          style={{
+            width: strength === 'weak' ? '33%' : strength === 'medium' ? '66%' : '100%'
+          }}
+        ></div>
+      </div>
+      <p className={`text-xs ${color.text} mt-1 capitalize`}>
+        Password strength: {strength}
+      </p>
+    </div>
+  );
+};
+
 export default function Profile() {
   const { user, setUser } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
@@ -42,6 +91,21 @@ export default function Profile() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState('');
+
+  const applyTheme = (nextTheme) => {
+    const root = document.documentElement;
+    const isDark = nextTheme === 'dark';
+
+    root.classList.toggle('dark', isDark);
+    root.style.colorScheme = isDark ? 'dark' : 'light';
+    window.localStorage.setItem('theme', nextTheme);
+    window.dispatchEvent(new CustomEvent('app-theme-change', { detail: { theme: nextTheme } }));
+  };
+
+  const handleThemeSelection = (nextTheme) => {
+    setProfileData((prev) => ({ ...prev, theme: nextTheme }));
+    applyTheme(nextTheme);
+  };
 
   const getInitials = (name) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
@@ -123,81 +187,32 @@ export default function Profile() {
     }
   };
 
-  const PasswordField = ({ label, value, onChange, showPassword, onToggleShow, name = '' }) => (
-    <div className="group">
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      <div className="relative">
-        <input
-          type={showPassword ? 'text' : 'password'}
-          name={name}
-          value={value}
-          onChange={onChange}
-          placeholder="Enter your password"
-          className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg transition-all duration-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-        />
-        <button
-          type="button"
-          onClick={onToggleShow}
-          className="absolute right-3 top-2.5 text-lg hover:scale-110 transition-transform"
-        >
-          {showPassword ? '👁️' : '👁️‍🗨️'}
-        </button>
-      </div>
-    </div>
-  );
-
-  const StrengthIndicator = ({ strength }) => {
-    if (!strength) return null;
-    const colors = {
-      weak: { bg: 'bg-red-200', bar: 'bg-red-500', text: 'text-red-600' },
-      medium: { bg: 'bg-yellow-200', bar: 'bg-yellow-500', text: 'text-yellow-600' },
-      strong: { bg: 'bg-green-200', bar: 'bg-green-500', text: 'text-green-600' }
-    };
-    const color = colors[strength];
-
-    return (
-      <div className="mt-2">
-        <div className={`h-2 rounded-full ${color.bg} overflow-hidden`}>
-          <div
-            className={`h-full ${color.bar} transition-all duration-300`}
-            style={{
-              width: strength === 'weak' ? '33%' : strength === 'medium' ? '66%' : '100%'
-            }}
-          ></div>
-        </div>
-        <p className={`text-xs ${color.text} mt-1 capitalize`}>
-          Password strength: {strength}
-        </p>
-      </div>
-    );
-  };
-
   return (
     <div className="max-w-5xl mx-auto py-8">
       {/* Profile Header Card */}
-      <div className="mb-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-8 border border-blue-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <div className="mb-8 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50 p-8 shadow-lg transition-shadow duration-300 hover:shadow-xl dark:border-slate-700 dark:from-slate-900 dark:to-slate-800 dark:shadow-black/20">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           {/* Profile Info */}
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">{user?.name}</h1>
-            <p className="text-gray-600 mb-4">{user?.email}</p>
+            <h1 className="mb-1 text-3xl font-bold text-gray-900 dark:text-slate-100">{user?.name}</h1>
+            <p className="mb-4 text-gray-600 dark:text-slate-300">{user?.email}</p>
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
               <div>
-                <span className="text-sm text-gray-500">Currency</span>
-                <p className="text-lg font-semibold text-gray-900">{profileData.currency}</p>
+                <span className="text-sm text-gray-500 dark:text-slate-400">Currency</span>
+                <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">{profileData.currency}</p>
               </div>
               <div>
-                <span className="text-sm text-gray-500">Theme</span>
-                <p className="text-lg font-semibold text-gray-900 capitalize">{profileData.theme}</p>
+                <span className="text-sm text-gray-500 dark:text-slate-400">Theme</span>
+                <p className="text-lg font-semibold capitalize text-gray-900 dark:text-slate-100">{profileData.theme}</p>
               </div>
             </div>
           </div>
 
           {/* Status Badge */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 border-2 border-green-300 w-full sm:w-auto">
+          <div className="w-full rounded-lg border-2 border-green-300 bg-white p-3 sm:w-auto sm:p-4 dark:border-green-500/40 dark:bg-slate-900">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-              <span className="text-sm font-semibold text-green-600">Active</span>
+              <span className="text-sm font-semibold text-green-600 dark:text-green-400">Active</span>
             </div>
           </div>
         </div>
@@ -357,7 +372,7 @@ export default function Profile() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Light Theme Card */}
             <div
-              onClick={() => setProfileData({ ...profileData, theme: 'light' })}
+              onClick={() => handleThemeSelection('light')}
               className={`relative p-6 rounded-xl border-3 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
                 profileData.theme === 'light'
                   ? 'border-blue-600 bg-blue-50 shadow-lg'
@@ -384,7 +399,7 @@ export default function Profile() {
 
             {/* Dark Theme Card */}
             <div
-              onClick={() => setProfileData({ ...profileData, theme: 'dark' })}
+              onClick={() => handleThemeSelection('dark')}
               className={`relative p-6 rounded-xl border-3 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
                 profileData.theme === 'dark'
                   ? 'border-purple-600 bg-purple-50 shadow-lg'

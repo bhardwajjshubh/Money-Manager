@@ -105,6 +105,16 @@ export default function Loans() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: user?.currency || 'INR' }).format(amount);
   };
 
+  useEffect(() => {
+    const targetId = window.location.hash.replace('#', '');
+    if (!targetId) return;
+
+    const element = document.getElementById(targetId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
   const getStatusColor = (status) => {
     const colors = {
       open: 'bg-blue-100 text-blue-800',
@@ -117,7 +127,7 @@ export default function Loans() {
 
   return (
     <div>
-      <div className="sm:flex sm:items-center sm:justify-between mb-6">
+      <div id="loan-section" className="sm:flex sm:items-center sm:justify-between mb-6 scroll-mt-28">
         <h1 className="text-2xl font-bold text-gray-900">Lending & Borrowing</h1>
         <button
           onClick={() => (showForm ? handleCancelForm() : setShowForm(true))}

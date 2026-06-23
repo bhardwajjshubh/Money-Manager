@@ -3,17 +3,34 @@ import LoadingState from '../components/LoadingState';
 import api from '../utils/api';
 import { formatDateDDMMYYYY } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
+import { useLocation } from 'react-router-dom';
 
 export default function Expenses() {
   const { user } = useAuth();
+  const location = useLocation();
+
+  const getFiltersFromSearch = (search) => {
+    const params = new URLSearchParams(search);
+
+    return {
+      month: params.get('month') || '',
+      year: params.get('year') || '',
+      categoryId: params.get('category') || '',
+      subcategoryId: params.get('subcategory') || ''
+    };
+  };
+
+  const initialFilters = getFiltersFromSearch(location.search);
+
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
-  const [selectedFilterCategoryId, setSelectedFilterCategoryId] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(initialFilters.month);
+  const [selectedYear, setSelectedYear] = useState(initialFilters.year);
+  const [selectedFilterCategoryId, setSelectedFilterCategoryId] = useState(initialFilters.categoryId);
+  const [selectedFilterSubcategoryId, setSelectedFilterSubcategoryId] = useState(initialFilters.subcategoryId);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalExpenses, setTotalExpenses] = useState(0);
@@ -27,6 +44,7 @@ export default function Expenses() {
   const [formData, setFormData] = useState({
     amount: '',
     categoryId: '',
+    subcategoryId: '',
     date: '',
     paymentMethod: 'upi',
     notes: ''
@@ -55,8 +73,18 @@ export default function Expenses() {
   }, []);
 
   useEffect(() => {
+    const nextFilters = getFiltersFromSearch(location.search);
+
+    setSelectedMonth(nextFilters.month);
+    setSelectedYear(nextFilters.year);
+    setSelectedFilterCategoryId(nextFilters.categoryId);
+    setSelectedFilterSubcategoryId(nextFilters.subcategoryId);
+    setCurrentPage(1);
+  }, [location.search]);
+
+  useEffect(() => {
     fetchData();
-  }, [currentPage, selectedMonth, selectedYear, selectedFilterCategoryId]);
+  }, [currentPage, selectedMonth, selectedYear, selectedFilterCategoryId, selectedFilterSubcategoryId]);
 
   const calculateSplitTotal = (amountList) => {
     return amountList.reduce((sum, amount) => {
@@ -131,6 +159,7 @@ export default function Expenses() {
       if (selectedMonth) query.set('month', selectedMonth);
       if (selectedYear) query.set('year', selectedYear);
       if (selectedFilterCategoryId) query.set('category', selectedFilterCategoryId);
+      if (selectedFilterSubcategoryId) query.set('subcategory', selectedFilterSubcategoryId);
 
       const [expensesRes, summaryRes] = await Promise.all([
         api.get(`/expenses?${query.toString()}`),
@@ -192,6 +221,7 @@ export default function Expenses() {
       const payload = {
         amount: normalizedAmount,
         categoryId: categoryIdToUse,
+        subcategoryId: formData.subcategoryId || undefined,
         date: formData.date,
         paymentMethod: formData.paymentMethod,
         notes: formData.notes
@@ -203,7 +233,7 @@ export default function Expenses() {
         await api.post('/expenses', payload);
       }
 
-      setFormData({ amount: '', categoryId: '', date: '', paymentMethod: 'upi', notes: '' });
+      setFormData({ amount: '', categoryId: '', subcategoryId: '', date: '', paymentMethod: 'upi', notes: '' });
       setCustomCategoryName('');
       setEditingExpenseId(null);
       setIsMultiAmountMode(false);
@@ -225,6 +255,7 @@ export default function Expenses() {
     setFormData({
       amount: expense.amount?.toString() || '',
       categoryId: expense.category?._id || '',
+      subcategoryId: expense.subcategoryId || '',
       date: expense.date ? expense.date.slice(0, 10) : '',
       paymentMethod: expense.paymentMethod || 'upi',
       notes: expense.notes || ''
@@ -238,7 +269,7 @@ export default function Expenses() {
   };
 
   const handleCancelForm = () => {
-    setFormData({ amount: '', categoryId: '', date: '', paymentMethod: 'upi', notes: '' });
+    setFormData({ amount: '', categoryId: '', subcategoryId: '', date: '', paymentMethod: 'upi', notes: '' });
     setCustomCategoryName('');
     setSelectedCategoryOption('');
     setEditingExpenseId(null);
@@ -267,7 +298,7 @@ export default function Expenses() {
 
   const pageStart = totalExpenses === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const pageEnd = Math.min(currentPage * itemsPerPage, totalExpenses);
-  const hasFilters = Boolean(selectedMonth || selectedYear || selectedFilterCategoryId);
+  const hasFilters = Boolean(selectedMonth || selectedYear || selectedFilterCategoryId || selectedFilterSubcategoryId);
 
   if (loading) return <LoadingState label="Loading expenses" />;
 
@@ -326,6 +357,7 @@ export default function Expenses() {
               value={selectedFilterCategoryId}
               onChange={(e) => {
                 setSelectedFilterCategoryId(e.target.value);
+                setSelectedFilterSubcategoryId('');
                 setCurrentPage(1);
               }}
               className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
@@ -335,6 +367,27 @@ export default function Expenses() {
                 <option key={category._id} value={category._id}>{category.name}</option>
               ))}
             </select>
+            {selectedFilterCategoryId && (() => {
+              const cat = categories.find((c) => c._id === selectedFilterCategoryId);
+              if (cat && Array.isArray(cat.subcategories) && cat.subcategories.length > 0) {
+                return (
+                  <div className="mt-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+                    <select
+                      value={selectedFilterSubcategoryId}
+                      onChange={(e) => { setSelectedFilterSubcategoryId(e.target.value); setCurrentPage(1); }}
+                      className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
+                    >
+                      <option value="">All Subcategories</option>
+                      {cat.subcategories.map((s) => (
+                        <option key={s._id} value={s._id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           <div>
@@ -343,6 +396,7 @@ export default function Expenses() {
                 setSelectedMonth('');
                 setSelectedYear('');
                 setSelectedFilterCategoryId('');
+                setSelectedFilterSubcategoryId('');
                 setCurrentPage(1);
               }}
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -441,13 +495,15 @@ export default function Expenses() {
                         );
                         setFormData({
                           ...formData,
-                          categoryId: matchingCategory?._id || ''
+                          categoryId: matchingCategory?._id || '',
+                          subcategoryId: ''
                         });
                       } else {
                         setCustomCategoryName('');
                         setFormData({
                           ...formData,
-                          categoryId: ''
+                          categoryId: '',
+                          subcategoryId: ''
                         });
                       }
                     }}
@@ -478,6 +534,27 @@ export default function Expenses() {
                       Selected: <span className="font-semibold">{selectedCategoryOption}</span>
                     </div>
                   )}
+                  {formData.categoryId && (() => {
+                    const cat = categories.find((c) => c._id === formData.categoryId);
+                    if (cat && Array.isArray(cat.subcategories) && cat.subcategories.length > 0) {
+                      return (
+                        <div className="mt-2">
+                          <label className="block text-sm font-medium text-gray-700">Subcategory</label>
+                          <select
+                            value={formData.subcategoryId}
+                            onChange={(e) => setFormData({ ...formData, subcategoryId: e.target.value })}
+                            className="w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2"
+                          >
+                            <option value="">None</option>
+                            {cat.subcategories.map((s) => (
+                              <option key={s._id} value={s._id}>{s.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
               <div>
@@ -567,7 +644,9 @@ export default function Expenses() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <span className="inline-flex items-center">
                       <span className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: expense.category?.color || '#3B82F6' }}></span>
-                      {expense.category?.name}
+                      <div>
+                        <div>{expense.category?.name}{expense.subcategoryName ? ` / ${expense.subcategoryName}` : ''}</div>
+                      </div>
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
