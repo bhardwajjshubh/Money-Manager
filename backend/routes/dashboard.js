@@ -41,6 +41,15 @@ const buildPreviousMonthRange = (month, year) => {
 };
 
 const firstTotal = (rows) => rows?.[0]?.total || 0;
+const DASHBOARD_CACHE_TTL_MS = 15000;
+const dashboardCache = new Map();
+const buildDashboardCacheKey = (userId, query) => JSON.stringify({
+  userId: String(userId),
+  month: query.month || '',
+  year: query.year || '',
+  incomeMonth: query.incomeMonth || '',
+  incomeYear: query.incomeYear || ''
+});
 
 // Get dashboard overview
 router.get('/', authenticate, async (req, res) => {
@@ -54,6 +63,14 @@ router.get('/', authenticate, async (req, res) => {
       endDate: incomeEndDate
     } = buildMonthRange(req.query.incomeMonth || req.query.month, req.query.incomeYear || req.query.year);
     const previousRange = buildPreviousMonthRange(selectedMonth, selectedYear);
+    const cacheKey = buildDashboardCacheKey(userId, req.query);
+    const cachedDashboard = dashboardCache.get(cacheKey);
+
+    if (cachedDashboard && cachedDashboard.expiresAt > Date.now() && req.query.refresh !== '1') {
+      res.set('Cache-Control', 'private, max-age=15');
+      return res.json(cachedDashboard.payload);
+    }
+
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -232,7 +249,7 @@ router.get('/', authenticate, async (req, res) => {
       };
     });
     
-    res.json({
+    const responsePayload = {
       success: true,
       data: {
         currentBalance,
@@ -270,7 +287,15 @@ router.get('/', authenticate, async (req, res) => {
           expenses: monthlyExpense
         }
       }
+    };
+
+    dashboardCache.set(cacheKey, {
+      expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS,
+      payload: responsePayload
     });
+
+    res.set('Cache-Control', 'private, max-age=15');
+    return res.json(responsePayload);
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
