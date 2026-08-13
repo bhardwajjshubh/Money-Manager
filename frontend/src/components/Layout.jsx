@@ -81,10 +81,10 @@ export default function Layout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Left Section - Logo & Navigation */}
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-4 sm:space-x-8 min-w-0">
               {/* Logo with Gradient */}
               <div className="flex-shrink-0 flex items-center">
-                <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <Link to="/" className="whitespace-nowrap text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Money Manager
                 </Link>
               </div>
@@ -125,20 +125,20 @@ export default function Layout() {
             </div>
 
             {/* Right Section - Mobile Menu Toggle + Profile */}
-            <div className="flex items-center space-x-2 lg:space-x-4">
+            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
               {/* Theme Toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="inline-flex p-1.5 sm:p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 {theme === 'dark' ? (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m8.66-8.66h-1M4.34 12.34h-1m15.07 5.07l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M18 12a6 6 0 11-12 0 6 6 0 0112 0z" />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3a6.75 6.75 0 106.75 6.75A8.96 8.96 0 0112 3z" />
                   </svg>
                 )}
@@ -147,10 +147,10 @@ export default function Layout() {
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors dark:hover:bg-slate-800"
+                className="lg:hidden p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors dark:hover:bg-slate-800"
               >
                 <svg
-                  className={`w-6 h-6 text-gray-700 transition-transform duration-300 dark:text-slate-200 ${
+                  className={`w-5 h-5 sm:w-6 sm:h-6 text-gray-700 transition-transform duration-300 dark:text-slate-200 ${
                     showMobileMenu ? 'rotate-90' : ''
                   }`}
                   fill="none"
@@ -170,10 +170,10 @@ export default function Layout() {
               <div className="relative">
                 <button
                   onClick={() => setShowDropdown(!showDropdown)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all duration-300 group dark:hover:bg-slate-800"
+                  className="flex items-center gap-2 px-2 py-1.5 sm:gap-3 sm:px-3 sm:py-2 rounded-lg hover:bg-gray-100 transition-all duration-300 group dark:hover:bg-slate-800"
                 >
                   {/* Avatar Circle */}
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:shadow-lg transition-shadow">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:shadow-lg transition-shadow">
                     {getInitials(user?.name)}
                   </div>
                   
@@ -185,7 +185,7 @@ export default function Layout() {
                   
                   {/* Dropdown Arrow */}
                   <svg 
-                    className={`w-4 h-4 text-gray-500 transition-transform duration-300 dark:text-slate-400 ${showDropdown ? 'rotate-180' : ''}`} 
+                    className={`hidden sm:block w-4 h-4 text-gray-500 transition-transform duration-300 dark:text-slate-400 ${showDropdown ? 'rotate-180' : ''}`} 
                     fill="none" 
                     viewBox="0 0 24 24" 
                     stroke="currentColor"
