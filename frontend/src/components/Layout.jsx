@@ -24,7 +24,6 @@ export default function Layout() {
   const [theme, setTheme] = useState(getInitialTheme);
 
   const navigation = [
-    { name: 'Dashboard', path: '/' },
     { name: 'Income', path: '/income' },
     { name: 'Expenses', path: '/expenses' },
     { name: 'Categories', path: '/categories' },
