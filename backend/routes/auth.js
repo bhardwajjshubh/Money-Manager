@@ -17,10 +17,25 @@ const REFRESH_COOKIE_OPTIONS = {
 
 const issueRefreshCookie = async (res, user) => {
   const { token, tokenHash, expiresAt } = createRefreshToken();
-  user.refreshTokens.push({ tokenHash, expiresAt });
   console.time('refresh-cookie-save');
   try {
-    await user.save();
+    if (user.isNew) {
+      user.refreshTokens.push({ tokenHash, expiresAt });
+      await user.save();
+    } else {
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            name: user.name,
+            isEmailVerified: user.isEmailVerified
+          },
+          $push: {
+            refreshTokens: { tokenHash, expiresAt }
+          }
+        }
+      );
+    }
   } finally {
     console.timeEnd('refresh-cookie-save');
   }
