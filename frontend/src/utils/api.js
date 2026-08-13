@@ -23,6 +23,30 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Simple in-memory dedupe for concurrent GET requests to avoid duplicate network calls
+const pendingGetRequests = new Map();
+
+const _originalGet = api.get.bind(api);
+api.get = (url, config) => {
+  try {
+    const paramsKey = config && config.params ? JSON.stringify(config.params) : '';
+    const key = `GET:${url}?${paramsKey}`;
+
+    if (pendingGetRequests.has(key)) {
+      return pendingGetRequests.get(key);
+    }
+
+    const promise = _originalGet(url, config).finally(() => {
+      pendingGetRequests.delete(key);
+    });
+
+    pendingGetRequests.set(key, promise);
+    return promise;
+  } catch (err) {
+    return _originalGet(url, config);
+  }
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {

@@ -347,17 +347,17 @@ export default function Dashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 mb-8">
         {/* Top Spending Categories */}
-        <div className="rounded-lg border border-gray-100 bg-white p-5 shadow transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
-          <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="rounded-lg border border-gray-100 bg-white p-4 sm:p-5 shadow transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
+          <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100">Top Spending Categories</h3>
-              <p className="text-sm text-gray-500 dark:text-slate-400">{selectedPeriodLabel}</p>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-slate-100">Top Spending Categories</h3>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">{selectedPeriodLabel}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-center gap-2">
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm sm:px-3 sm:py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               >
                 {monthOptions.map((month) => (
                   <option key={month.value} value={month.value}>{month.label}</option>
@@ -366,7 +366,7 @@ export default function Dashboard() {
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm sm:px-3 sm:py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               >
                 {yearOptions.map((year) => (
                   <option key={year} value={year}>{year}</option>
@@ -375,15 +375,15 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="mb-4 flex items-end justify-between gap-4">
+          <div className="mb-3 sm:mb-4 flex items-end justify-between gap-3">
             <div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{formatCurrency(totalSelectedExpense)}</p>
-              <p className="text-sm text-gray-500 dark:text-slate-400">Total expenses in {selectedPeriodLabel}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100">{formatCurrency(totalSelectedExpense)}</p>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">Total expenses in {selectedPeriodLabel}</p>
             </div>
-            <p className="text-sm font-medium text-gray-500 dark:text-slate-400">{selectedCategoryExpenseCount} {selectedCategoryExpenseCount === 1 ? 'category' : 'categories'}</p>
+            <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-slate-400">{selectedCategoryExpenseCount} {selectedCategoryExpenseCount === 1 ? 'category' : 'categories'}</p>
           </div>
 
-          <div className="max-h-[24rem] space-y-4 overflow-y-auto pr-2">
+          <div className="max-h-[20rem] sm:max-h-[24rem] space-y-3 sm:space-y-4 overflow-y-auto pr-2">
             {topCategories.length > 0 ? topCategories.map((item, index) => {
               const categoryName = item.category?.name || 'Uncategorized';
               const percent = totalSelectedExpense > 0 ? Math.round((item.total / totalSelectedExpense) * 100) : 0;
@@ -396,18 +396,20 @@ export default function Dashboard() {
                   onClick={() => navigateToCategoryExpenses(item.category?._id)}
                   className="w-full space-y-2 text-left transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-transparent"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 text-sm font-semibold text-gray-500 dark:text-slate-400">{index + 1}</span>
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md text-white" style={{ backgroundColor: barColor }}>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="w-5 sm:w-6 text-sm font-semibold text-gray-500 dark:text-slate-400">{index + 1}</span>
+                    <span className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md text-white" style={{ backgroundColor: barColor }}>
                       <span className="text-xs font-bold">{categoryName.slice(0, 1).toUpperCase()}</span>
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-gray-900 dark:text-slate-100">{categoryName}</p>
                     </div>
-                    <p className="shrink-0 text-sm font-semibold text-gray-900 dark:text-slate-100">{formatCurrency(item.total || 0)}</p>
-                    <p className="w-12 text-right text-sm font-semibold text-gray-600 dark:text-slate-300">{percent}%</p>
+                    <div className="shrink-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{formatCurrency(item.total || 0)}</p>
+                    </div>
+                    <p className="w-10 text-right text-sm font-semibold text-gray-600 dark:text-slate-300">{percent}%</p>
                   </div>
-                  <div className="ml-9 h-2 rounded-full bg-gray-100 dark:bg-slate-800">
+                  <div className="ml-8 sm:ml-9 h-2 rounded-full bg-gray-100 dark:bg-slate-800">
                     <div
                       className="h-2 rounded-full transition-all duration-300"
                       style={{ width: `${Math.max(percent, 4)}%`, backgroundColor: barColor }}
@@ -424,17 +426,17 @@ export default function Dashboard() {
         </div>
 
         {/* Top Income Categories */}
-        <div className="rounded-lg border border-gray-100 bg-white p-5 shadow transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
-          <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="rounded-lg border border-gray-100 bg-white p-4 sm:p-5 shadow transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
+          <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100">Top Income Categories</h3>
-              <p className="text-sm text-gray-500 dark:text-slate-400">{selectedIncomePeriodLabel}</p>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-slate-100">Top Income Categories</h3>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">{selectedIncomePeriodLabel}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-center gap-2">
               <select
                 value={selectedIncomeMonth}
                 onChange={(e) => setSelectedIncomeMonth(e.target.value)}
-                className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm sm:px-3 sm:py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               >
                 {monthOptions.map((month) => (
                   <option key={`income-month-${month.value}`} value={month.value}>{month.label}</option>
@@ -443,7 +445,7 @@ export default function Dashboard() {
               <select
                 value={selectedIncomeYear}
                 onChange={(e) => setSelectedIncomeYear(e.target.value)}
-                className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm sm:px-3 sm:py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               >
                 {yearOptions.map((year) => (
                   <option key={`income-year-${year}`} value={year}>{year}</option>
@@ -452,15 +454,15 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="mb-4 flex items-end justify-between gap-4">
+          <div className="mb-3 sm:mb-4 flex items-end justify-between gap-3">
             <div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{formatCurrency(totalSelectedIncome)}</p>
-              <p className="text-sm text-gray-500 dark:text-slate-400">Total income in {selectedIncomePeriodLabel}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100">{formatCurrency(totalSelectedIncome)}</p>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">Total income in {selectedIncomePeriodLabel}</p>
             </div>
-            <p className="text-sm font-medium text-gray-500 dark:text-slate-400">{selectedCategoryIncomeCount} {selectedCategoryIncomeCount === 1 ? 'category' : 'categories'}</p>
+            <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-slate-400">{selectedCategoryIncomeCount} {selectedCategoryIncomeCount === 1 ? 'category' : 'categories'}</p>
           </div>
 
-          <div className="max-h-[24rem] space-y-4 overflow-y-auto pr-2">
+          <div className="max-h-[20rem] sm:max-h-[24rem] space-y-3 sm:space-y-4 overflow-y-auto pr-2">
             {topIncomeCategories.length > 0 ? topIncomeCategories.map((item, index) => {
               const incomeSource = item.source || 'Other';
               const percent = totalSelectedIncome > 0 ? Math.round((item.total / totalSelectedIncome) * 100) : 0;
@@ -473,18 +475,20 @@ export default function Dashboard() {
                   onClick={() => navigateToSourceIncome(incomeSource)}
                   className="w-full space-y-2 text-left transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-transparent"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 text-sm font-semibold text-gray-500 dark:text-slate-400">{index + 1}</span>
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md text-white" style={{ backgroundColor: barColor }}>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="w-5 sm:w-6 text-sm font-semibold text-gray-500 dark:text-slate-400">{index + 1}</span>
+                    <span className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md text-white" style={{ backgroundColor: barColor }}>
                       <span className="text-xs font-bold">{incomeSource.slice(0, 1).toUpperCase()}</span>
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-gray-900 dark:text-slate-100">{incomeSource}</p>
                     </div>
-                    <p className="shrink-0 text-sm font-semibold text-gray-900 dark:text-slate-100">{formatCurrency(item.total || 0)}</p>
-                    <p className="w-12 text-right text-sm font-semibold text-gray-600 dark:text-slate-300">{percent}%</p>
+                    <div className="shrink-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{formatCurrency(item.total || 0)}</p>
+                    </div>
+                    <p className="w-10 text-right text-sm font-semibold text-gray-600 dark:text-slate-300">{percent}%</p>
                   </div>
-                  <div className="ml-9 h-2 rounded-full bg-gray-100 dark:bg-slate-800">
+                  <div className="ml-8 sm:ml-9 h-2 rounded-full bg-gray-100 dark:bg-slate-800">
                     <div
                       className="h-2 rounded-full transition-all duration-300"
                       style={{ width: `${Math.max(percent, 4)}%`, backgroundColor: barColor }}
