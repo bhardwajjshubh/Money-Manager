@@ -17,6 +17,10 @@ const userSchema = new mongoose.Schema({
   isEmailVerified: { type: Boolean, default: true }
 });
 
+// Ensure an index exists for email lookups (unique, created in background).
+userSchema.index({ email: 1 }, { unique: true, background: true });
+
+// Index for refresh token lookups (used when validating refresh cookies)
 userSchema.index({ 'refreshTokens.tokenHash': 1 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -97,7 +97,8 @@ router.post('/firebase-auth',
         console.timeEnd('firebase-token-verification');
       }
 
-      const email = decodedToken?.email;
+      const rawEmail = decodedToken?.email;
+      const email = String(rawEmail || '').toLowerCase().trim();
       const emailVerified = decodedToken?.email_verified;
 
       if (!email) {
