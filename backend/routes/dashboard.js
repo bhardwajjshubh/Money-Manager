@@ -52,117 +52,157 @@ router.get('/', authenticate, async (req, res) => {
       endDate: incomeEndDate
     } = buildMonthRange(req.query.incomeMonth || req.query.month, req.query.incomeYear || req.query.year);
     const previousRange = buildPreviousMonthRange(selectedMonth, selectedYear);
-    
-    // Total income
-    const incomeResult = await Income.aggregate([
-      { $match: { user: userId } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    const totalIncome = incomeResult[0]?.total || 0;
-    
-    // Total expenses
-    const expenseResult = await Expense.aggregate([
-      { $match: { user: userId } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    const totalExpenses = expenseResult[0]?.total || 0;
-    
-    // Money to receive (lent)
-    const lentResult = await Loan.aggregate([
-      { $match: outstandingLoanMatch(userId, 'lent') },
-      { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
-    ]);
-    const moneyToReceive = lentResult[0]?.total || 0;
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    const moneyToReceiveLoans = await Loan.find({
-      ...outstandingLoanMatch(userId, 'lent')
-    })
-      .select(loanSummaryProjection)
-      .sort({ remainingAmount: -1, createdAt: -1 })
-      .lean();
-    
-    // Money to pay (borrowed)
-    const borrowedResult = await Loan.aggregate([
-      { $match: outstandingLoanMatch(userId, 'borrowed') },
-      { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
-    ]);
-    const moneyToPay = borrowedResult[0]?.total || 0;
-
-    const moneyToPayLoans = await Loan.find({
-      ...outstandingLoanMatch(userId, 'borrowed')
-    })
-      .select(loanSummaryProjection)
-      .sort({ remainingAmount: -1, createdAt: -1 })
-      .lean();
-    
-    // Current balance should reflect only actual income/expenses, not outstanding loans
-    const currentBalance = totalIncome - totalExpenses;
-    const totalSavings = totalIncome - totalExpenses;
-    
-    // Category-wise expenses for the selected month/year
-    const categoryExpenses = await Expense.aggregate([
-      { $match: { user: userId, date: { $gte: startDate, $lt: endDate } } },
-      { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
-      { $sort: { total: -1 } },
-      { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
-      { $unwind: '$category' }
-    ]);
-
-    const categoryIncome = await Income.aggregate([
-      { $match: { user: userId, date: { $gte: incomeStartDate, $lt: incomeEndDate } } },
-      {
-        $project: {
-          amount: 1,
-          sourceLabel: {
-            $let: {
-              vars: { trimmedSource: { $trim: { input: { $ifNull: ['$source', ''] } } } },
-              in: {
-                $cond: [
-                  { $eq: ['$$trimmedSource', ''] },
-                  'Other',
-                  '$$trimmedSource'
-                ]
+    const [
+      incomeResult,
+      expenseResult,
+      lentResult,
+      moneyToReceiveLoans,
+      borrowedResult,
+      moneyToPayLoans,
+      categoryExpenses,
+      categoryIncome,
+      previousCategoryExpenses,
+      selectedIncomeResult,
+      selectedExpenseResult,
+      previousIncomeResult,
+      previousExpenseResult,
+      budgets,
+      monthlyIncome,
+      monthlyExpense
+    ] = await Promise.all([
+      Income.aggregate([
+        { $match: { user: userId } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Expense.aggregate([
+        { $match: { user: userId } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Loan.aggregate([
+        { $match: outstandingLoanMatch(userId, 'lent') },
+        { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+      ]),
+      Loan.find({
+        ...outstandingLoanMatch(userId, 'lent')
+      })
+        .select(loanSummaryProjection)
+        .sort({ remainingAmount: -1, createdAt: -1 })
+        .lean(),
+      Loan.aggregate([
+        { $match: outstandingLoanMatch(userId, 'borrowed') },
+        { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+      ]),
+      Loan.find({
+        ...outstandingLoanMatch(userId, 'borrowed')
+      })
+        .select(loanSummaryProjection)
+        .sort({ remainingAmount: -1, createdAt: -1 })
+        .lean(),
+      Expense.aggregate([
+        { $match: { user: userId, date: { $gte: startDate, $lt: endDate } } },
+        { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+        { $sort: { total: -1 } },
+        { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
+        { $unwind: '$category' }
+      ]),
+      Income.aggregate([
+        { $match: { user: userId, date: { $gte: incomeStartDate, $lt: incomeEndDate } } },
+        {
+          $project: {
+            amount: 1,
+            sourceLabel: {
+              $let: {
+                vars: { trimmedSource: { $trim: { input: { $ifNull: ['$source', ''] } } } },
+                in: {
+                  $cond: [
+                    { $eq: ['$$trimmedSource', ''] },
+                    'Other',
+                    '$$trimmedSource'
+                  ]
+                }
               }
             }
           }
-        }
-      },
-      {
-        $group: {
-          _id: { $toLower: '$sourceLabel' },
-          source: { $first: '$sourceLabel' },
-          total: { $sum: '$amount' },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { total: -1 } }
+        },
+        {
+          $group: {
+            _id: { $toLower: '$sourceLabel' },
+            source: { $first: '$sourceLabel' },
+            total: { $sum: '$amount' },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { total: -1 } }
+      ]),
+      Expense.aggregate([
+        { $match: { user: userId, date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
+        { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+        { $sort: { total: -1 } },
+        { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
+        { $unwind: '$category' }
+      ]),
+      Income.aggregate([
+        { $match: { user: userId, date: { $gte: startDate, $lt: endDate } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Expense.aggregate([
+        { $match: { user: userId, date: { $gte: startDate, $lt: endDate } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Income.aggregate([
+        { $match: { user: userId, date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Expense.aggregate([
+        { $match: { user: userId, date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Budget.find({
+        user: userId,
+        month: selectedMonth,
+        year: selectedYear
+      }).populate('category', 'name color type').lean(),
+      Income.aggregate([
+        { $match: { user: userId, date: { $gte: sixMonthsAgo } } },
+        { $group: {
+          _id: { year: { $year: '$date' }, month: { $month: '$date' } },
+          total: { $sum: '$amount' }
+        }},
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]),
+      Expense.aggregate([
+        { $match: { user: userId, date: { $gte: sixMonthsAgo } } },
+        { $group: {
+          _id: { year: { $year: '$date' }, month: { $month: '$date' } },
+          total: { $sum: '$amount' }
+        }},
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ])
     ]);
 
-    const previousCategoryExpenses = await Expense.aggregate([
-      { $match: { user: userId, date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
-      { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
-      { $sort: { total: -1 } },
-      { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
-      { $unwind: '$category' }
-    ]);
+    const budgetCategoryIds = budgets.map((budget) => budget.category?._id).filter(Boolean);
+    const budgetSpentByCategory = budgetCategoryIds.length
+      ? await Expense.aggregate([
+        {
+          $match: {
+            user: userId,
+            category: { $in: budgetCategoryIds },
+            date: { $gte: startDate, $lt: endDate }
+          }
+        },
+        { $group: { _id: '$category', total: { $sum: '$amount' } } }
+      ])
+      : [];
 
-    const selectedIncomeResult = await Income.aggregate([
-      { $match: { user: userId, date: { $gte: startDate, $lt: endDate } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    const selectedExpenseResult = await Expense.aggregate([
-      { $match: { user: userId, date: { $gte: startDate, $lt: endDate } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-
-    const previousIncomeResult = await Income.aggregate([
-      { $match: { user: userId, date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    const previousExpenseResult = await Expense.aggregate([
-      { $match: { user: userId, date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
+    const totalIncome = incomeResult[0]?.total || 0;
+    const totalExpenses = expenseResult[0]?.total || 0;
+    const moneyToReceive = lentResult[0]?.total || 0;
+    const moneyToPay = borrowedResult[0]?.total || 0;
+    const currentBalance = totalIncome - totalExpenses;
+    const totalSavings = totalIncome - totalExpenses;
 
     const selectedIncomeTotal = selectedIncomeResult[0]?.total || 0;
     const selectedExpenseTotal = selectedExpenseResult[0]?.total || 0;
@@ -172,25 +212,9 @@ router.get('/', authenticate, async (req, res) => {
     const selectedSavings = selectedIncomeTotal - selectedExpenseTotal;
     const previousSavings = previousIncomeTotal - previousExpenseTotal;
 
-    const budgets = await Budget.find({
-      user: userId,
-      month: selectedMonth,
-      year: selectedYear
-    }).populate('category', 'name color type').lean();
-
-    const budgetUsage = await Promise.all(budgets.map(async (budget) => {
-      const spent = await Expense.aggregate([
-        {
-          $match: {
-            user: userId,
-            category: budget.category._id,
-            date: { $gte: startDate, $lt: endDate }
-          }
-        },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]);
-
-      const spentAmount = spent[0]?.total || 0;
+    const budgetSpentMap = new Map(budgetSpentByCategory.map((entry) => [String(entry._id), entry.total || 0]));
+    const budgetUsage = budgets.map((budget) => {
+      const spentAmount = budgetSpentMap.get(String(budget.category?._id)) || 0;
       const remaining = budget.amount - spentAmount;
       const percentage = budget.amount > 0 ? Math.round((spentAmount / budget.amount) * 100) : 0;
 
@@ -201,29 +225,7 @@ router.get('/', authenticate, async (req, res) => {
         percentage,
         exceeded: spentAmount > budget.amount
       };
-    }));
-    
-    // Monthly trend (last 6 months)
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    
-    const monthlyIncome = await Income.aggregate([
-      { $match: { user: userId, date: { $gte: sixMonthsAgo } } },
-      { $group: {
-        _id: { year: { $year: '$date' }, month: { $month: '$date' } },
-        total: { $sum: '$amount' }
-      }},
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ]);
-    
-    const monthlyExpense = await Expense.aggregate([
-      { $match: { user: userId, date: { $gte: sixMonthsAgo } } },
-      { $group: {
-        _id: { year: { $year: '$date' }, month: { $month: '$date' } },
-        total: { $sum: '$amount' }
-      }},
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ]);
+    });
     
     res.json({
       success: true,

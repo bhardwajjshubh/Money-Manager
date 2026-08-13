@@ -32,4 +32,6 @@ loanSchema.pre('save', function(next) {
   next();
 });
 
+loanSchema.index({ user: 1, type: 1, remainingAmount: -1, createdAt: -1 });
+
 module.exports = mongoose.model('Loan', loanSchema);
