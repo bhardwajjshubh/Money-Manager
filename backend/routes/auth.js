@@ -18,7 +18,12 @@ const REFRESH_COOKIE_OPTIONS = {
 const issueRefreshCookie = async (res, user) => {
   const { token, tokenHash, expiresAt } = createRefreshToken();
   user.refreshTokens.push({ tokenHash, expiresAt });
-  await user.save();
+  console.time('refresh-cookie-save');
+  try {
+    await user.save();
+  } finally {
+    console.timeEnd('refresh-cookie-save');
+  }
 
   res.cookie(REFRESH_COOKIE_NAME, token, {
     ...REFRESH_COOKIE_OPTIONS,
@@ -66,9 +71,17 @@ router.post('/firebase-auth',
     if (!validateRequest(req, res)) return;
 
     const { idToken, name } = req.body;
+    console.time('firebase-auth-total');
 
     try {
-      const decodedToken = await verifyFirebaseIdToken(idToken);
+      let decodedToken;
+      console.time('firebase-token-verification');
+      try {
+        decodedToken = await verifyFirebaseIdToken(idToken);
+      } finally {
+        console.timeEnd('firebase-token-verification');
+      }
+
       const email = decodedToken?.email;
       const emailVerified = decodedToken?.email_verified;
 
@@ -80,7 +93,13 @@ router.post('/firebase-auth',
         return res.status(403).json({ success: false, message: 'Please verify your email before logging in' });
       }
 
-      let user = await User.findOne({ email });
+      let user;
+      console.time('user-find');
+      try {
+        user = await User.findOne({ email });
+      } finally {
+        console.timeEnd('user-find');
+      }
 
       if (!user) {
         const fallbackName = name || email.split('@')[0] || 'User';
@@ -97,8 +116,6 @@ router.post('/firebase-auth',
         if (name && user.name !== name) user.name = name;
         user.isEmailVerified = true;
       }
-
-      await user.save();
 
       const accessToken = generateAccessToken(user._id.toString());
       await issueRefreshCookie(res, user);
@@ -118,6 +135,8 @@ router.post('/firebase-auth',
     } catch (err) {
       console.error('Firebase auth error:', err?.message || err);
       return res.status(401).json({ success: false, message: 'Invalid Firebase token' });
+    } finally {
+      console.timeEnd('firebase-auth-total');
     }
   }
 );
