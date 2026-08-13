@@ -74,13 +74,10 @@ router.get('/', authenticate, async (req, res) => {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    const [
-      incomeStats,
-      expenseStats,
-      loanStats,
-      budgets,
-    ] = await Promise.all([
-      Income.aggregate([
+    const incomePromise = (async () => {
+      console.time('dashboard-income-aggregate');
+      try {
+          return await Income.aggregate([
         { $match: { user: userId } },
         {
           $facet: {
@@ -136,8 +133,16 @@ router.get('/', authenticate, async (req, res) => {
             ]
           }
         }
-      ]),
-      Expense.aggregate([
+      ]);
+      } finally {
+        console.timeEnd('dashboard-income-aggregate');
+      }
+    })();
+
+    const expensePromise = (async () => {
+      console.time('dashboard-expense-aggregate');
+      try {
+        return await Expense.aggregate([
         { $match: { user: userId } },
         {
           $facet: {
@@ -178,8 +183,16 @@ router.get('/', authenticate, async (req, res) => {
             ]
           }
         }
-      ]),
-      Loan.aggregate([
+      ]);
+      } finally {
+        console.timeEnd('dashboard-expense-aggregate');
+      }
+    })();
+
+    const loanPromise = (async () => {
+      console.time('dashboard-loan-aggregate');
+      try {
+        return await Loan.aggregate([
         { $match: { user: userId, remainingAmount: { $gt: 0 } } },
         {
           $facet: {
@@ -203,12 +216,35 @@ router.get('/', authenticate, async (req, res) => {
             ]
           }
         }
-      ]),
-      Budget.find({
-        user: userId,
-        month: selectedMonth,
-        year: selectedYear
-      }).populate('category', 'name color type').lean(),
+      ]);
+      } finally {
+        console.timeEnd('dashboard-loan-aggregate');
+      }
+    })();
+
+    const budgetsPromise = (async () => {
+      console.time('dashboard-budgets-find');
+      try {
+        return await Budget.find({
+          user: userId,
+          month: selectedMonth,
+          year: selectedYear
+        }).populate('category', 'name color type').lean();
+      } finally {
+        console.timeEnd('dashboard-budgets-find');
+      }
+    })();
+
+    const [
+      incomeStats,
+      expenseStats,
+      loanStats,
+      budgets,
+    ] = await Promise.all([
+      incomePromise,
+      expensePromise,
+      loanPromise,
+      budgetsPromise,
     ]);
 
     const totalIncome = firstTotal(incomeStats?.[0]?.totals);
