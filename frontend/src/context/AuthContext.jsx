@@ -7,8 +7,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
-  updateProfile,
-  reload
+  updateProfile
 } from 'firebase/auth';
 import { firebaseAuth } from '../utils/firebase';
 
@@ -143,7 +142,6 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const credentials = await signInWithEmailAndPassword(firebaseAuth, email, password);
-    await reload(credentials.user);
 
     if (!credentials.user.emailVerified) {
       await sendEmailVerification(credentials.user);
@@ -151,7 +149,7 @@ export function AuthProvider({ children }) {
       throw new Error('Email is not verified. A new verification email has been sent.');
     }
 
-    const idToken = await credentials.user.getIdToken(true);
+    const idToken = await credentials.user.getIdToken();
     return completeFirebaseSession(idToken, credentials.user.displayName || email.split('@')[0]);
   };
 
