@@ -40,6 +40,8 @@ const buildPreviousMonthRange = (month, year) => {
   return buildMonthRange(previousDate.getMonth() + 1, previousDate.getFullYear());
 };
 
+const firstTotal = (rows) => rows?.[0]?.total || 0;
+
 // Get dashboard overview
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -56,163 +58,166 @@ router.get('/', authenticate, async (req, res) => {
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
     const [
-      incomeResult,
-      expenseResult,
-      lentResult,
-      moneyToReceiveLoans,
-      borrowedResult,
-      moneyToPayLoans,
-      categoryExpenses,
-      categoryIncome,
-      previousCategoryExpenses,
-      selectedIncomeResult,
-      selectedExpenseResult,
-      previousIncomeResult,
-      previousExpenseResult,
+      incomeStats,
+      expenseStats,
+      loanStats,
       budgets,
-      monthlyIncome,
-      monthlyExpense
     ] = await Promise.all([
       Income.aggregate([
         { $match: { user: userId } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        {
+          $facet: {
+            totals: [
+              { $group: { _id: null, total: { $sum: '$amount' } } }
+            ],
+            selected: [
+              { $match: { date: { $gte: startDate, $lt: endDate } } },
+              { $group: { _id: null, total: { $sum: '$amount' } } }
+            ],
+            previous: [
+              { $match: { date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
+              { $group: { _id: null, total: { $sum: '$amount' } } }
+            ],
+            categoryIncome: [
+              { $match: { date: { $gte: incomeStartDate, $lt: incomeEndDate } } },
+              {
+                $project: {
+                  amount: 1,
+                  sourceLabel: {
+                    $let: {
+                      vars: { trimmedSource: { $trim: { input: { $ifNull: ['$source', ''] } } } },
+                      in: {
+                        $cond: [
+                          { $eq: ['$$trimmedSource', ''] },
+                          'Other',
+                          '$$trimmedSource'
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                $group: {
+                  _id: { $toLower: '$sourceLabel' },
+                  source: { $first: '$sourceLabel' },
+                  total: { $sum: '$amount' },
+                  count: { $sum: 1 }
+                }
+              },
+              { $sort: { total: -1 } }
+            ],
+            monthlyTrend: [
+              { $match: { date: { $gte: sixMonthsAgo } } },
+              {
+                $group: {
+                  _id: { year: { $year: '$date' }, month: { $month: '$date' } },
+                  total: { $sum: '$amount' }
+                }
+              },
+              { $sort: { '_id.year': 1, '_id.month': 1 } }
+            ]
+          }
+        }
       ]),
       Expense.aggregate([
         { $match: { user: userId } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]),
-      Loan.aggregate([
-        { $match: outstandingLoanMatch(userId, 'lent') },
-        { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
-      ]),
-      Loan.find({
-        ...outstandingLoanMatch(userId, 'lent')
-      })
-        .select(loanSummaryProjection)
-        .sort({ remainingAmount: -1, createdAt: -1 })
-        .lean(),
-      Loan.aggregate([
-        { $match: outstandingLoanMatch(userId, 'borrowed') },
-        { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
-      ]),
-      Loan.find({
-        ...outstandingLoanMatch(userId, 'borrowed')
-      })
-        .select(loanSummaryProjection)
-        .sort({ remainingAmount: -1, createdAt: -1 })
-        .lean(),
-      Expense.aggregate([
-        { $match: { user: userId, date: { $gte: startDate, $lt: endDate } } },
-        { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
-        { $sort: { total: -1 } },
-        { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
-        { $unwind: '$category' }
-      ]),
-      Income.aggregate([
-        { $match: { user: userId, date: { $gte: incomeStartDate, $lt: incomeEndDate } } },
         {
-          $project: {
-            amount: 1,
-            sourceLabel: {
-              $let: {
-                vars: { trimmedSource: { $trim: { input: { $ifNull: ['$source', ''] } } } },
-                in: {
-                  $cond: [
-                    { $eq: ['$$trimmedSource', ''] },
-                    'Other',
-                    '$$trimmedSource'
-                  ]
+          $facet: {
+            totals: [
+              { $group: { _id: null, total: { $sum: '$amount' } } }
+            ],
+            selected: [
+              { $match: { date: { $gte: startDate, $lt: endDate } } },
+              { $group: { _id: null, total: { $sum: '$amount' } } }
+            ],
+            previous: [
+              { $match: { date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
+              { $group: { _id: null, total: { $sum: '$amount' } } }
+            ],
+            categoryExpenses: [
+              { $match: { date: { $gte: startDate, $lt: endDate } } },
+              { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+              { $sort: { total: -1 } },
+              { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
+              { $unwind: '$category' }
+            ],
+            previousCategoryExpenses: [
+              { $match: { date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
+              { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+              { $sort: { total: -1 } },
+              { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
+              { $unwind: '$category' }
+            ],
+            monthlyTrend: [
+              { $match: { date: { $gte: sixMonthsAgo } } },
+              {
+                $group: {
+                  _id: { year: { $year: '$date' }, month: { $month: '$date' } },
+                  total: { $sum: '$amount' }
                 }
-              }
-            }
+              },
+              { $sort: { '_id.year': 1, '_id.month': 1 } }
+            ]
           }
-        },
+        }
+      ]),
+      Loan.aggregate([
+        { $match: { user: userId, remainingAmount: { $gt: 0 } } },
         {
-          $group: {
-            _id: { $toLower: '$sourceLabel' },
-            source: { $first: '$sourceLabel' },
-            total: { $sum: '$amount' },
-            count: { $sum: 1 }
+          $facet: {
+            lentTotal: [
+              { $match: { type: 'lent' } },
+              { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+            ],
+            moneyToReceiveLoans: [
+              { $match: { type: 'lent' } },
+              { $sort: { remainingAmount: -1, createdAt: -1 } },
+              { $project: loanSummaryProjection }
+            ],
+            borrowedTotal: [
+              { $match: { type: 'borrowed' } },
+              { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+            ],
+            moneyToPayLoans: [
+              { $match: { type: 'borrowed' } },
+              { $sort: { remainingAmount: -1, createdAt: -1 } },
+              { $project: loanSummaryProjection }
+            ]
           }
-        },
-        { $sort: { total: -1 } }
-      ]),
-      Expense.aggregate([
-        { $match: { user: userId, date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
-        { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
-        { $sort: { total: -1 } },
-        { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
-        { $unwind: '$category' }
-      ]),
-      Income.aggregate([
-        { $match: { user: userId, date: { $gte: startDate, $lt: endDate } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]),
-      Expense.aggregate([
-        { $match: { user: userId, date: { $gte: startDate, $lt: endDate } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]),
-      Income.aggregate([
-        { $match: { user: userId, date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]),
-      Expense.aggregate([
-        { $match: { user: userId, date: { $gte: previousRange.startDate, $lt: previousRange.endDate } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        }
       ]),
       Budget.find({
         user: userId,
         month: selectedMonth,
         year: selectedYear
       }).populate('category', 'name color type').lean(),
-      Income.aggregate([
-        { $match: { user: userId, date: { $gte: sixMonthsAgo } } },
-        { $group: {
-          _id: { year: { $year: '$date' }, month: { $month: '$date' } },
-          total: { $sum: '$amount' }
-        }},
-        { $sort: { '_id.year': 1, '_id.month': 1 } }
-      ]),
-      Expense.aggregate([
-        { $match: { user: userId, date: { $gte: sixMonthsAgo } } },
-        { $group: {
-          _id: { year: { $year: '$date' }, month: { $month: '$date' } },
-          total: { $sum: '$amount' }
-        }},
-        { $sort: { '_id.year': 1, '_id.month': 1 } }
-      ])
     ]);
 
-    const budgetCategoryIds = budgets.map((budget) => budget.category?._id).filter(Boolean);
-    const budgetSpentByCategory = budgetCategoryIds.length
-      ? await Expense.aggregate([
-        {
-          $match: {
-            user: userId,
-            category: { $in: budgetCategoryIds },
-            date: { $gte: startDate, $lt: endDate }
-          }
-        },
-        { $group: { _id: '$category', total: { $sum: '$amount' } } }
-      ])
-      : [];
-
-    const totalIncome = incomeResult[0]?.total || 0;
-    const totalExpenses = expenseResult[0]?.total || 0;
-    const moneyToReceive = lentResult[0]?.total || 0;
-    const moneyToPay = borrowedResult[0]?.total || 0;
+    const totalIncome = firstTotal(incomeStats?.[0]?.totals);
+    const totalExpenses = firstTotal(expenseStats?.[0]?.totals);
+    const moneyToReceive = firstTotal(loanStats?.[0]?.lentTotal);
+    const moneyToPay = firstTotal(loanStats?.[0]?.borrowedTotal);
+    const moneyToReceiveLoans = loanStats?.[0]?.moneyToReceiveLoans || [];
+    const moneyToPayLoans = loanStats?.[0]?.moneyToPayLoans || [];
     const currentBalance = totalIncome - totalExpenses;
     const totalSavings = totalIncome - totalExpenses;
 
-    const selectedIncomeTotal = selectedIncomeResult[0]?.total || 0;
-    const selectedExpenseTotal = selectedExpenseResult[0]?.total || 0;
-    const previousIncomeTotal = previousIncomeResult[0]?.total || 0;
-    const previousExpenseTotal = previousExpenseResult[0]?.total || 0;
+    const selectedIncomeTotal = firstTotal(incomeStats?.[0]?.selected);
+    const selectedExpenseTotal = firstTotal(expenseStats?.[0]?.selected);
+    const previousIncomeTotal = firstTotal(incomeStats?.[0]?.previous);
+    const previousExpenseTotal = firstTotal(expenseStats?.[0]?.previous);
 
     const selectedSavings = selectedIncomeTotal - selectedExpenseTotal;
     const previousSavings = previousIncomeTotal - previousExpenseTotal;
 
-    const budgetSpentMap = new Map(budgetSpentByCategory.map((entry) => [String(entry._id), entry.total || 0]));
+    const categoryExpenses = expenseStats?.[0]?.categoryExpenses || [];
+    const categoryIncome = incomeStats?.[0]?.categoryIncome || [];
+    const previousCategoryExpenses = expenseStats?.[0]?.previousCategoryExpenses || [];
+    const monthlyIncome = incomeStats?.[0]?.monthlyTrend || [];
+    const monthlyExpense = expenseStats?.[0]?.monthlyTrend || [];
+
+    const budgetSpentMap = new Map(categoryExpenses.map((entry) => [String(entry._id), entry.total || 0]));
     const budgetUsage = budgets.map((budget) => {
       const spentAmount = budgetSpentMap.get(String(budget.category?._id)) || 0;
       const remaining = budget.amount - spentAmount;
