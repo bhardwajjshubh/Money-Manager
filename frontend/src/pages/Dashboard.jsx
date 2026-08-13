@@ -28,7 +28,7 @@ const defaultYear = String(currentDate.getFullYear());
 const yearOptions = Array.from({ length: 10 }, (_, index) => String(currentDate.getFullYear() - index));
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { refreshTrigger } = useDataRefresh();
   const [data, setData] = useState(null);
@@ -39,8 +39,9 @@ export default function Dashboard() {
   const [selectedIncomeYear, setSelectedIncomeYear] = useState(defaultYear);
 
   useEffect(() => {
+    if (authLoading) return;
     fetchDashboard(selectedMonth, selectedYear, selectedIncomeMonth, selectedIncomeYear);
-  }, [refreshTrigger, selectedMonth, selectedYear, selectedIncomeMonth, selectedIncomeYear]);
+  }, [authLoading, refreshTrigger, selectedMonth, selectedYear, selectedIncomeMonth, selectedIncomeYear]);
 
   const fetchDashboard = async (
     month = selectedMonth,

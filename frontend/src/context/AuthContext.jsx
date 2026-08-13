@@ -63,6 +63,11 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.post('/auth/refresh', {}, { signal: controller.signal });
       setAccessToken(data.data.accessToken);
+      if (data?.data?.user) {
+        setUser(data.data.user);
+        return;
+      }
+
       const userRes = await api.get('/users/me', { signal: controller.signal });
       setUser(userRes.data.data.user);
     } catch (error) {

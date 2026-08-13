@@ -155,7 +155,19 @@ router.post('/refresh', async (req, res) => {
     if (!stored || stored.expiresAt < new Date()) return res.status(401).json({ success: false, message: 'Refresh token expired' });
 
     const accessToken = generateAccessToken(user._id.toString());
-    res.json({ success: true, data: { accessToken } });
+    res.json({
+      success: true,
+      data: {
+        accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          currency: user.currency,
+          theme: user.theme
+        }
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
