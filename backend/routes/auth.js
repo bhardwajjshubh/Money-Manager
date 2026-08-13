@@ -149,7 +149,9 @@ router.post('/refresh', async (req, res) => {
   if (!token) return res.status(401).json({ success: false, message: 'Missing refresh token' });
   try {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const user = await User.findOne({ 'refreshTokens.tokenHash': tokenHash });
+    const user = await User.findOne({ 'refreshTokens.tokenHash': tokenHash })
+      .select('name email currency theme refreshTokens')
+      .lean();
     if (!user) return res.status(401).json({ success: false, message: 'Invalid refresh token' });
     const stored = user.refreshTokens.find(r => r.tokenHash === tokenHash);
     if (!stored || stored.expiresAt < new Date()) return res.status(401).json({ success: false, message: 'Refresh token expired' });

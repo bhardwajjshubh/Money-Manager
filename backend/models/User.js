@@ -17,4 +17,6 @@ const userSchema = new mongoose.Schema({
   isEmailVerified: { type: Boolean, default: true }
 });
 
+userSchema.index({ 'refreshTokens.tokenHash': 1 });
+
 module.exports = mongoose.model('User', userSchema);
