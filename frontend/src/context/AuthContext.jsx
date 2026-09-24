@@ -9,7 +9,7 @@ import {
   signOut,
   updateProfile
 } from 'firebase/auth';
-import { firebaseAuth } from '../utils/firebase';
+import { firebaseAuth, firebasePersistenceReady } from '../utils/firebase';
 
 const AuthContext = createContext();
 
@@ -141,6 +141,7 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
+    await firebasePersistenceReady;
     const credentials = await signInWithEmailAndPassword(firebaseAuth, email, password);
 
     if (!credentials.user.emailVerified) {
