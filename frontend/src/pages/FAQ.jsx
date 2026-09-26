@@ -75,14 +75,14 @@ export default function FAQ() {
   };
 
   return (
-    <div className="w-full bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
+    <div className="w-full min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="max-w-4xl mx-auto py-12 px-4">
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
             Frequently Asked Questions
           </h1>
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-600 text-lg dark:text-slate-300">
             Find answers to common questions about Money Manager and how to use our platform effectively.
           </p>
         </div>
@@ -92,13 +92,13 @@ export default function FAQ() {
         {faqs.map((faq, index) => (
           <div
             key={index}
-            className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300"
+            className="rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20"
           >
             <button
               onClick={() => toggleFAQ(index)}
-              className="w-full px-6 py-5 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200"
+              className="flex w-full items-center justify-between px-6 py-5 transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-slate-800"
             >
-              <h3 className="text-lg font-semibold text-gray-900 text-left">
+              <h3 className="text-left text-lg font-semibold text-gray-900 dark:text-slate-100">
                 {faq.question}
               </h3>
               <svg
@@ -120,8 +120,8 @@ export default function FAQ() {
 
             {/* Answer */}
             {openIndex === index && (
-              <div className="px-6 py-5 bg-gradient-to-br from-blue-50 to-purple-50 border-t border-gray-200 animate-slideIn">
-                <p className="text-gray-700 leading-relaxed">
+              <div className="animate-slideIn border-t border-gray-200 bg-gradient-to-br from-blue-50 to-purple-50 px-6 py-5 dark:border-slate-700 dark:from-slate-800 dark:to-slate-900">
+                <p className="leading-relaxed text-gray-700 dark:text-slate-200">
                   {faq.answer}
                 </p>
               </div>
@@ -131,18 +131,18 @@ export default function FAQ() {
       </div>
 
       {/* Contact Section */}
-      <div className="mt-16 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-8 border border-blue-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Still have questions?</h2>
-        <p className="text-gray-700 mb-4">
+      <div className="mt-16 rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 p-8 dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
+        <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-slate-100">Still have questions?</h2>
+        <p className="mb-4 text-gray-700 dark:text-slate-200">
           Can't find the answer you're looking for? Our support team is here to help.
         </p>
         <div className="flex items-center gap-3">
           <span className="text-lg">📧</span>
           <div>
-            <p className="text-sm text-gray-600">Contact us at:</p>
+            <p className="text-sm text-gray-600 dark:text-slate-400">Contact us at:</p>
             <a
               href="mailto:bhardwajjshubh@gmail.com"
-              className="text-lg font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+              className="text-lg font-semibold text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
             >
               bhardwajjshubh@gmail.com
             </a>
@@ -152,7 +152,7 @@ export default function FAQ() {
 
       {/* Features Overview */}
       <div className="mt-16">
-        <h2 className="text-2xl font-bold text-gray-900 mb-8">Key Features</h2>
+        <h2 className="mb-8 text-2xl font-bold text-gray-900 dark:text-slate-100">Key Features</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[
             {
@@ -182,12 +182,12 @@ export default function FAQ() {
           ].map((feature, index) => (
             <div
               key={index}
-              className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+              className="rounded-lg border border-gray-200 bg-white p-6 transition-colors hover:border-blue-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-500"
             >
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-slate-100">
                 {feature.title}
               </h3>
-              <p className="text-gray-600">{feature.description}</p>
+              <p className="text-gray-600 dark:text-slate-300">{feature.description}</p>
             </div>
           ))}
         </div>
