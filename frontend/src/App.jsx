@@ -11,6 +11,7 @@ import Layout from './components/Layout';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Income = lazy(() => import('./pages/Income'));
 const Expenses = lazy(() => import('./pages/Expenses'));
+const CreditCards = lazy(() => import('./pages/CreditCards'));
 const Categories = lazy(() => import('./pages/Categories'));
 const Budgets = lazy(() => import('./pages/Budgets'));
 const Savings = lazy(() => import('./pages/Savings'));
@@ -61,6 +62,11 @@ function App() {
               <Route path="expenses" element={
                 <Suspense fallback={<LoadingSpinner />}>
                   <Expenses />
+                </Suspense>
+              } />
+              <Route path="credit-cards" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <CreditCards />
                 </Suspense>
               } />
               <Route path="categories" element={

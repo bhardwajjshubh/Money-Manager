@@ -5,6 +5,10 @@ const Income = require('../models/Income');
 const Expense = require('../models/Expense');
 const Loan = require('../models/Loan');
 const Budget = require('../models/Budget');
+const CreditCard = require('../models/CreditCard');
+const CreditCardTransaction = require('../models/CreditCardTransaction');
+const CreditCardPayment = require('../models/CreditCardPayment');
+const CreditCardStatement = require('../models/CreditCardStatement');
 
 const router = express.Router();
 
@@ -235,16 +239,46 @@ router.get('/', authenticate, async (req, res) => {
       }
     })();
 
+    const creditCardPromise = (async () => {
+      const activeCards = await CreditCard.find({ user: userId, status: 'active' }).select('_id').lean();
+      const cardIds = activeCards.map((card) => card._id);
+      if (cardIds.length === 0) {
+        return { activeCardCount: 0, outstandingBalance: 0, unpaidStatementBalance: 0, nextPaymentDueDate: null, nextUpcomingBillAmount: 0 };
+      }
+
+      const [transactionTotals, paymentTotals, statements] = await Promise.all([
+        CreditCardTransaction.aggregate([
+          { $match: { user: userId, creditCard: { $in: cardIds } } },
+          { $group: { _id: null, total: { $sum: { $multiply: ['$amount', { $cond: [{ $eq: ['$transactionType', 'refund'] }, -1, 1] }] } } } }
+        ]),
+        CreditCardPayment.aggregate([
+          { $match: { user: userId, creditCard: { $in: cardIds } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]),
+        CreditCardStatement.find({ user: userId, creditCard: { $in: cardIds }, status: { $ne: 'paid' } }).sort({ dueDate: 1 }).lean()
+      ]);
+      const nextStatement = statements[0];
+      return {
+        activeCardCount: activeCards.length,
+        outstandingBalance: Math.max(0, (transactionTotals[0]?.total || 0) - (paymentTotals[0]?.total || 0)),
+        unpaidStatementBalance: statements.reduce((sum, statement) => sum + Math.max(0, statement.totalAmount - statement.amountPaid), 0),
+        nextPaymentDueDate: nextStatement?.dueDate || null,
+        nextUpcomingBillAmount: nextStatement ? Math.max(0, nextStatement.totalAmount - nextStatement.amountPaid) : 0
+      };
+    })();
+
     const [
       incomeStats,
       expenseStats,
       loanStats,
       budgets,
+      creditCardSummary,
     ] = await Promise.all([
       incomePromise,
       expensePromise,
       loanPromise,
       budgetsPromise,
+      creditCardPromise,
     ]);
 
     const totalIncome = firstTotal(incomeStats?.[0]?.totals);
@@ -296,6 +330,7 @@ router.get('/', authenticate, async (req, res) => {
         moneyToPay,
         moneyToReceiveLoans,
         moneyToPayLoans,
+        creditCardSummary,
         categoryExpenses,
         categoryIncome,
         previousCategoryExpenses,

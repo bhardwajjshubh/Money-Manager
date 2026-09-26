@@ -326,6 +326,24 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Credit Card Section */}
+      <div className="mb-8 rounded-lg border border-blue-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Credit Card Outstanding</p>
+            <p className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(data?.creditCardSummary?.outstandingBalance || 0)}</p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">
+              Unpaid statements: {formatCurrency(data?.creditCardSummary?.unpaidStatementBalance || 0)}
+            </p>
+          </div>
+          <div className="flex flex-col gap-1 text-sm text-gray-600 dark:text-slate-300 sm:text-right">
+            <span>Next due: {data?.creditCardSummary?.nextPaymentDueDate ? new Date(data.creditCardSummary.nextPaymentDueDate).toLocaleDateString('en-IN') : 'No pending bills'}</span>
+            <span>Upcoming bill: {formatCurrency(data?.creditCardSummary?.nextUpcomingBillAmount || 0)}</span>
+          </div>
+          <button onClick={() => navigate('/credit-cards')} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">{data?.creditCardSummary?.activeCardCount ? 'Manage Credit Cards' : 'Add Your First Card'}</button>
+        </div>
+      </div>
+
       {/* Loans Section */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 mb-8">
         <LoanSummaryCard

@@ -15,6 +15,7 @@ const budgetRoutes = require('./routes/budgets');
 const savingsRoutes = require('./routes/savings');
 const loanRoutes = require('./routes/loans');
 const dashboardRoutes = require('./routes/dashboard');
+const creditCardRoutes = require('./routes/creditCards');
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/v1/budgets', budgetRoutes);
 app.use('/api/v1/savings', savingsRoutes);
 app.use('/api/v1/loans', loanRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/credit-cards', creditCardRoutes);
 
 app.get('/', (req, res) => res.json({ success: true, message: 'Money Manager API' }));
 

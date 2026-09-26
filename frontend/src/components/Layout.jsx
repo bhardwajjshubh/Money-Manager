@@ -26,7 +26,7 @@ export default function Layout() {
   const navigation = [
     { name: 'Income', path: '/income' },
     { name: 'Expenses', path: '/expenses' },
-    { name: 'Categories', path: '/categories' },
+    { name: 'Credit Cards', path: '/credit-cards' },
     { name: 'Budgets', path: '/budgets' },
     { name: 'Savings', path: '/savings' },
     { name: 'Loans', path: '/loans' },

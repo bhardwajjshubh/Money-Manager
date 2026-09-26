@@ -2,13 +2,15 @@ const mongoose = require('mongoose');
 
 const expenseSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  amount: { type: Number, required: true, min: 0 },
+  amount: { type: Number, required: true, min: -1000000000 },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   paymentMethod: { type: String, default: 'upi', trim: true },
   date: { type: Date, required: true, index: true },
   notes: { type: String, trim: true },
   subcategoryId: { type: mongoose.Schema.Types.ObjectId },
-  subcategoryName: { type: String, trim: true }
+  subcategoryName: { type: String, trim: true },
+  creditCardTransaction: { type: mongoose.Schema.Types.ObjectId, ref: 'CreditCardTransaction', index: true },
+  creditCardTransactionType: { type: String, enum: ['purchase', 'refund', 'adjustment'] }
 }, { timestamps: true });
 
 expenseSchema.index({ user: 1, date: -1 });
